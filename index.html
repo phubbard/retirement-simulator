@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retirement Financial Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232733;
+  --border: #2e3347;
+  --text: #e2e4ed;
+  --text-dim: #8b8fa3;
+  --accent: #5b8af5;
+  --accent-hover: #7aa2ff;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --yellow: #fbbf24;
+  --purple: #a78bfa;
+  --radius: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+.app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.app-header h1 { font-size: 20px; font-weight: 600; }
+.app-header h1 span { color: var(--accent); }
+.header-actions { display: flex; gap: 8px; }
+.tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; overflow-x: auto; }
+.tab { padding: 12px 18px; cursor: pointer; color: var(--text-dim); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+.tab:hover { color: var(--text); background: var(--surface2); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card-title .icon { font-size: 18px; }
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+@media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.field input, .field select, .field textarea {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; color: var(--text); font-size: 14px; font-family: var(--font);
+  transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+.field input[type="range"] { padding: 0; background: transparent; border: none; }
+.field .hint { font-size: 11px; color: var(--text-dim); }
+button {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer;
+  font-family: var(--font); transition: background 0.15s;
+}
+button:hover { background: var(--accent-hover); }
+button.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+button.secondary:hover { background: var(--border); }
+button.danger { background: var(--red); }
+button.small { padding: 6px 12px; font-size: 12px; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-green { background: rgba(74,222,128,0.15); color: var(--green); }
+.tag-red { background: rgba(248,113,113,0.15); color: var(--red); }
+.tag-orange { background: rgba(251,146,60,0.15); color: var(--orange); }
+.tag-blue { background: rgba(91,138,245,0.15); color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 12px; font-weight: 600; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: var(--surface2); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 700; font-family: var(--mono); }
+.stat-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.chart-container { position: relative; height: 400px; margin: 16px 0; }
+.expense-list { max-height: 400px; overflow-y: auto; }
+.expense-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.expense-row:last-child { border-bottom: none; }
+.expense-row .name { flex: 1; }
+.expense-row .amount { font-family: var(--mono); font-weight: 600; }
+.progress-bar { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.alert { padding: 12px 16px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.alert-info { background: rgba(91,138,245,0.1); border: 1px solid rgba(91,138,245,0.3); }
+.alert-warn { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3); }
+.alert-success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.hidden { display: none !important; }
+.inline-flex { display: flex; align-items: center; gap: 8px; }
+.spacer { flex: 1; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mt-16 { margin-top: 16px; }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-dim { color: var(--text-dim); }
+.text-accent { color: var(--accent); }
+.text-mono { font-family: var(--mono); }
+.fw-600 { font-weight: 600; }
+.fs-12 { font-size: 12px; }
+.fs-14 { font-size: 14px; }
+.section-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--surface2); border-radius: 11px; cursor: pointer; transition: 0.2s; }
+.toggle .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .slider { background: var(--accent); }
+.toggle input:checked + .slider:before { transform: translateX(18px); background: #fff; }
+.collapsible-header { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.collapsible-header:hover { color: var(--accent); }
+.collapsible-body { overflow: hidden; transition: max-height 0.3s; }
+.scenario-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.scenario-tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; background: var(--surface2); color: var(--text-dim); border: 1px solid transparent; }
+.scenario-tab.active { background: var(--accent); color: #fff; }
+.scenario-tab:hover:not(.active) { border-color: var(--border); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app-header">
+  <h1><span>&#9670;</span> Retirement Financial Planner</h1>
+  <div class="header-actions">
+    <button class="secondary small" onclick="exportConfig()">Export Config</button>
+    <button class="secondary small" onclick="document.getElementById('importInput').click()">Import Config</button>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importConfig(event)">
+    <button class="small" onclick="runSimulation()">Run Simulation</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="personal" onclick="switchTab('personal')">Personal & Income</div>
+  <div class="tab" data-tab="housing" onclick="switchTab('housing')">Housing & Prop 13</div>
+  <div class="tab" data-tab="assets" onclick="switchTab('assets')">Assets & Investments</div>
+  <div class="tab" data-tab="expenses" onclick="switchTab('expenses')">Expenses</div>
+  <div class="tab" data-tab="taxes" onclick="switchTab('taxes')">Tax Strategy</div>
+  <div class="tab" data-tab="simulation" onclick="switchTab('simulation')">Simulation Settings</div>
+  <div class="tab" data-tab="results" onclick="switchTab('results')">Results Dashboard</div>
+</div>
+
+<div class="content">
+
+<!-- ====== PERSONAL & INCOME TAB ====== -->
+<div class="panel active" id="panel-personal">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128100;</span> Personal Information</div>
+    <div class="grid grid-4">
+      <div class="field"><label>Current Age</label><input type="number" id="currentAge" value="55" min="18" max="100"></div>
+      <div class="field"><label>Retirement Age</label><input type="number" id="retirementAge" value="65" min="30" max="100"></div>
+      <div class="field"><label>Life Expectancy</label><input type="number" id="lifeExpectancy" value="90" min="50" max="120"><div class="hint">Plan for longevity risk</div></div>
+      <div class="field"><label>Filing Status</label>
+        <select id="filingStatus">
+          <option value="single">Single</option>
+          <option value="married" selected>Married Filing Jointly</option>
+          <option value="head">Head of Household</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128176;</span> Current Employment Income</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Annual Gross Salary ($)</label><input type="number" id="salary" value="180000" step="1000"></div>
+      <div class="field"><label>Annual Raise (%)</label><input type="number" id="annualRaise" value="3" step="0.1"><div class="hint">Expected annual increase</div></div>
+      <div class="field"><label>Employer 401k Match (%)</label><input type="number" id="employerMatch" value="4" step="0.5" max="100"><div class="hint">% of salary matched</div></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Spouse Annual Salary ($)</label><input type="number" id="spouseSalary" value="0" step="1000"></div>
+      <div class="field"><label>Spouse Annual Raise (%)</label><input type="number" id="spouseRaise" value="3" step="0.1"></div>
+      <div class="field"><label>Spouse Retirement Age</label><input type="number" id="spouseRetAge" value="65" min="30" max="100"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127963;</span> Social Security</div>
+    <div class="section-desc">Enter your estimated monthly benefit from ssa.gov. The model adjusts for claiming age (reduced at 62, full at FRA, +8%/yr delayed to 70).</div>
+    <div class="grid grid-4">
+      <div class="field"><label>Your FRA Benefit ($/mo)</label><input type="number" id="ssBenefit" value="2800" step="50"><div class="hint">Full Retirement Age benefit</div></div>
+      <div class="field"><label>Claiming Age</label><input type="number" id="ssClaimAge" value="67" min="62" max="70"></div>
+      <div class="field"><label>Spouse FRA Benefit ($/mo)</label><input type="number" id="spouseSsBenefit" value="1400" step="50"></div>
+      <div class="field"><label>Spouse Claiming Age</label><input type="number" id="spouseSsClaimAge" value="67" min="62" max="70"></div>
+    </div>
+    <div class="grid grid-2 mt-16">
+      <div class="field"><label>Your Full Retirement Age</label>
+        <select id="ssFRA">
+          <option value="66">66</option>
+          <option value="66.17">66 and 2 months</option>
+          <option value="66.33">66 and 4 months</option>
+          <option value="66.5">66 and 6 months</option>
+          <option value="66.67">66 and 8 months</option>
+          <option value="66.83">66 and 10 months</option>
+          <option value="67" selected>67</option>
+        </select>
+      </div>
+      <div class="field"><label>SS COLA Assumption (%)</label><input type="number" id="ssCola" value="2.5" step="0.1"><div class="hint">Annual cost-of-living adjustment</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128181;</span> Other Income Streams</div>
+    <div id="otherIncomeList"></div>
+    <button class="secondary small mt-16" onclick="addOtherIncome()">+ Add Income Stream</button>
+  </div>
+</div>
+
+<!-- ====== HOUSING & PROP 13 TAB ====== -->
+<div class="panel" id="panel-housing">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127968;</span> Primary Residence</div>
+    <div class="section-desc">California Prop 13: Assessed value can only increase by max 2% per year from the base year (purchase year). Tax rate is approximately 1% of assessed value plus local overrides, Mello-Roos, and special assessments.</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Current Market Value ($)</label><input type="number" id="homeValue" value="1200000" step="10000"></div>
+      <div class="field"><label>Purchase Price ($)</label><input type="number" id="homePurchasePrice" value="650000" step="10000"></div>
+      <div class="field"><label>Purchase Year</label><input type="number" id="homePurchaseYear" value="2010" min="1978" max="2026"></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Home Appreciation (%/yr)</label><input type="number" id="homeAppreciation" value="4.5" step="0.1"><div class="hint">Tracks CPI + local premium</div></div>
+      <div class="field"><label>Prop 13 Base Tax Rate (%)</label><input type="number" id="prop13BaseRate" value="1.0" step="0.01"><div class="hint">County base rate (typically 1%)</div></div>
+      <div class="field"><label>Mello-Roos / Special ($yr)</label><input type="number" id="melloRoos" value="1200" step="100"><div class="hint">Annual special assessments</div></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Local Override Rate (%)</label><input type="number" id="localOverride" value="0.15" step="0.01"><div class="hint">Bonds, school levies, etc.</div></div>
+      <div class="field"><label>Homeowner's Exemption ($)</label><input type="number" id="homeExemption" value="7000" step="1000"><div class="hint">$7,000 assessed value reduction</div></div>
+      <div class="field"><label>Prop 13 Max Annual Increase (%)</label><input type="number" id="prop13Cap" value="2.0" step="0.1"><div class="hint">Max 2% per year by law</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128179;</span> Mortgage</div>
+    <div class="grid grid-4">
+      <div class="field"><label>Outstanding Balance ($)</label><input type="number" id="mortgageBalance" value="280000" step="1000"></div>
+      <div class="field"><label>Monthly Payment ($)</label><input type="number" id="mortgagePayment" value="2400" step="50"></div>
+      <div class="field"><label>Interest Rate (%)</label><input type="number" id="mortgageRate" value="3.25" step="0.125"></div>
+      <div class="field"><label>Years Remaining</label><input type="number" id="mortgageYears" value="14" min="0" max="30"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Prop 13 Tax Projection</div>
+    <div id="prop13Summary" class="stat-grid"></div>
+    <div class="chart-container"><canvas id="prop13Chart"></canvas></div>
+    <button class="secondary small" onclick="updateProp13Chart()">Update Projection</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127961;</span> Home Maintenance & Insurance</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Annual Maintenance (%)</label><input type="number" id="homeMaintPct" value="1.0" step="0.1"><div class="hint">% of home value per year</div></div>
+      <div class="field"><label>Homeowner's Insurance ($/yr)</label><input type="number" id="homeInsurance" value="2400" step="100"></div>
+      <div class="field"><label>HOA Fees ($/mo)</label><input type="number" id="hoaFees" value="0" step="25"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128666;</span> Downsizing / Sale Plan</div>
+    <div class="grid grid-3">
+      <div class="field">
+        <label>Plan to Sell?</label>
+        <select id="planToSell">
+          <option value="no" selected>No</option>
+          <option value="yes">Yes</option>
+        </select>
+      </div>
+      <div class="field"><label>Sell at Age</label><input type="number" id="sellAge" value="75" min="30" max="100"></div>
+      <div class="field"><label>New Housing Cost ($/mo)</label><input type="number" id="newHousingCost" value="3000" step="100"><div class="hint">Rent or new mortgage after sale</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== ASSETS & INVESTMENTS TAB ====== -->
+<div class="panel" id="panel-assets">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128202;</span> Investment Accounts</div>
+    <div class="section-desc">Enter current balances. The model will track growth, contributions, and withdrawals across account types with different tax treatments.</div>
+    <div id="accountsList"></div>
+    <button class="secondary small mt-16" onclick="addAccount()">+ Add Account</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Portfolio Allocation</div>
+    <div class="section-desc">Set your target allocation. The model uses historical VFINX (S&P 500) returns for equities, Bloomberg Aggregate for bonds, and T-bills for cash.</div>
+    <div class="grid grid-3">
+      <div class="field">
+        <label>Equities (%) — tracks VFINX</label>
+        <input type="range" id="allocEquity" value="60" min="0" max="100" oninput="updateAllocDisplay()">
+        <div class="inline-flex"><span id="allocEquityVal" class="text-mono fw-600">60%</span></div>
+      </div>
+      <div class="field">
+        <label>Bonds (%)</label>
+        <input type="range" id="allocBonds" value="30" min="0" max="100" oninput="updateAllocDisplay()">
+        <div class="inline-flex"><span id="allocBondsVal" class="text-mono fw-600">30%</span></div>
+      </div>
+      <div class="field">
+        <label>Cash / T-bills (%)</label>
+        <input type="range" id="allocCash" value="10" min="0" max="100" oninput="updateAllocDisplay()">
+        <div class="inline-flex"><span id="allocCashVal" class="text-mono fw-600">10%</span></div>
+      </div>
+    </div>
+    <div id="allocWarning" class="alert alert-warn mt-16 hidden">Allocation must sum to 100%</div>
+
+    <div class="mt-16">
+      <div class="toggle-row">
+        <span class="fs-14">Glide path (reduce equities in retirement)</span>
+        <label class="toggle"><input type="checkbox" id="glidePath" checked><span class="slider"></span></label>
+      </div>
+      <div class="grid grid-2 mt-16" id="glidePathSettings">
+        <div class="field"><label>Retirement Equity (%)</label><input type="number" id="retEquity" value="40" min="0" max="100"></div>
+        <div class="field"><label>Transition Years</label><input type="number" id="glideYears" value="10" min="1" max="30"><div class="hint">Years to shift from current to retirement allocation</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128178;</span> Contributions (Pre-Retirement)</div>
+    <div class="grid grid-3">
+      <div class="field"><label>401k Annual ($)</label><input type="number" id="contrib401k" value="23500" step="500"><div class="hint">2025 limit: $23,500 (+$7,500 catch-up if 50+)</div></div>
+      <div class="field"><label>IRA Annual ($)</label><input type="number" id="contribIRA" value="7000" step="500"><div class="hint">2025 limit: $7,000 (+$1,000 catch-up if 50+)</div></div>
+      <div class="field"><label>Roth IRA Annual ($)</label><input type="number" id="contribRoth" value="7000" step="500"></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Taxable Brokerage ($/yr)</label><input type="number" id="contribTaxable" value="24000" step="1000"></div>
+      <div class="field"><label>HSA Annual ($)</label><input type="number" id="contribHSA" value="8300" step="100"><div class="hint">2025 family limit: $8,300</div></div>
+      <div class="field"><label>Increase Contributions w/ Raises?</label>
+        <select id="increaseContrib"><option value="yes" selected>Yes</option><option value="no">No</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128181;</span> Withdrawal Strategy (Retirement)</div>
+    <div class="grid grid-2">
+      <div class="field"><label>Withdrawal Method</label>
+        <select id="withdrawMethod">
+          <option value="fixed">Fixed Percentage</option>
+          <option value="dynamic" selected>Dynamic (Guardrails)</option>
+          <option value="bucket">Bucket Strategy</option>
+          <option value="rmd">RMD-Based</option>
+        </select>
+      </div>
+      <div class="field"><label>Initial Withdrawal Rate (%)</label><input type="number" id="withdrawRate" value="4.0" step="0.1"><div class="hint">Starting rate, adjusted by method</div></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Withdrawal Order</label>
+        <select id="withdrawOrder">
+          <option value="taxEfficient" selected>Tax-Efficient (Taxable → Traditional → Roth)</option>
+          <option value="proportional">Proportional from All</option>
+          <option value="custom">Custom Order</option>
+        </select>
+      </div>
+      <div class="field"><label>Guardrail Upper (%)</label><input type="number" id="guardrailUpper" value="5.5" step="0.1"><div class="hint">Cut spending above this rate</div></div>
+      <div class="field"><label>Guardrail Lower (%)</label><input type="number" id="guardrailLower" value="3.5" step="0.1"><div class="hint">Increase spending below this rate</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== EXPENSES TAB ====== -->
+<div class="panel" id="panel-expenses">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128176;</span> Monthly Living Expenses</div>
+    <div class="section-desc">Enter your baseline monthly expenses. These inflate annually at the CPI rate. Housing costs are computed separately from the Housing tab.</div>
+    <div id="monthlyExpenseList"></div>
+    <button class="secondary small mt-16" onclick="addMonthlyExpense()">+ Add Monthly Expense</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128197;</span> Annual Expenses</div>
+    <div id="annualExpenseList"></div>
+    <button class="secondary small mt-16" onclick="addAnnualExpense()">+ Add Annual Expense</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128260;</span> Recurring Purchases</div>
+    <div class="section-desc">Items bought on a cycle — "new phone every 3 years", "car every 8 years", "roof every 20 years", etc. All amounts inflate at CPI.</div>
+    <div id="recurringExpenseList"></div>
+    <button class="secondary small mt-16" onclick="addRecurringExpense()">+ Add Recurring Purchase</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128302;</span> One-Time Future Expenses</div>
+    <div class="section-desc">Planned future events — wedding, college tuition, medical procedure, etc.</div>
+    <div id="oneTimeExpenseList"></div>
+    <button class="secondary small mt-16" onclick="addOneTimeExpense()">+ Add One-Time Expense</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#129658;</span> Healthcare</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Current Health Insurance ($/mo)</label><input type="number" id="healthInsurance" value="800" step="50"></div>
+      <div class="field"><label>Annual Out-of-Pocket ($)</label><input type="number" id="healthOOP" value="3000" step="100"></div>
+      <div class="field"><label>Healthcare Inflation (%)</label><input type="number" id="healthInflation" value="5.5" step="0.1"><div class="hint">Historically ~5-6% annually</div></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Medicare Start Age</label><input type="number" id="medicareAge" value="65" min="65" max="70"></div>
+      <div class="field"><label>Medicare + Supplement ($/mo)</label><input type="number" id="medicareCost" value="400" step="25"><div class="hint">Parts B, D, and Medigap</div></div>
+      <div class="field"><label>Long-Term Care Insurance ($/yr)</label><input type="number" id="ltcInsurance" value="0" step="100"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128202;</span> Expense Summary</div>
+    <div id="expenseSummary" class="stat-grid"></div>
+    <div class="chart-container" style="height:300px"><canvas id="expenseBreakdownChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ====== TAX STRATEGY TAB ====== -->
+<div class="panel" id="panel-taxes">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127970;</span> Federal Tax Settings</div>
+    <div class="section-desc">2025 federal tax brackets are built in. Adjust assumptions below for projections.</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Standard Deduction ($)</label><input type="number" id="fedStdDeduction" value="30000" step="100"><div class="hint">2025 MFJ: ~$30,000</div></div>
+      <div class="field"><label>Bracket Inflation (%)</label><input type="number" id="bracketInflation" value="2.5" step="0.1"><div class="hint">Annual bracket adjustment</div></div>
+      <div class="field"><label>LTCG Rate (%)</label><input type="number" id="ltcgRate" value="15" step="1"><div class="hint">Long-term capital gains rate</div></div>
+    </div>
+    <div class="toggle-row mt-16">
+      <span class="fs-14">Roth Conversion Ladder Strategy</span>
+      <label class="toggle"><input type="checkbox" id="rothConversion"><span class="slider"></span></label>
+    </div>
+    <div class="grid grid-2 mt-16" id="rothConversionSettings">
+      <div class="field"><label>Convert Up To Bracket ($)</label><input type="number" id="rothConvertLimit" value="89450" step="1000"><div class="hint">Fill up to this taxable income level</div></div>
+      <div class="field"><label>Conversion Years</label><input type="number" id="rothConvertYears" value="10" min="1" max="30"><div class="hint">Years between retirement and SS/RMDs</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127774;</span> California State Tax</div>
+    <div class="grid grid-2">
+      <div class="field"><label>CA Standard Deduction ($)</label><input type="number" id="caStdDeduction" value="10726" step="100"><div class="hint">2025 MFJ estimate</div></div>
+      <div class="field"><label>Additional CA Deductions ($)</label><input type="number" id="caExtraDeductions" value="0" step="100"></div>
+    </div>
+    <div class="section-desc mt-16">California taxes all income including capital gains as ordinary income. Top marginal rate: 13.3%.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Tax Projection</div>
+    <div id="taxProjectionSummary" class="stat-grid"></div>
+    <div class="chart-container"><canvas id="taxChart"></canvas></div>
+    <button class="secondary small" onclick="updateTaxChart()">Update Projection</button>
+  </div>
+</div>
+
+<!-- ====== SIMULATION SETTINGS TAB ====== -->
+<div class="panel" id="panel-simulation">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#127922;</span> Monte Carlo Parameters</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Number of Simulations</label><input type="number" id="numSims" value="2000" min="100" max="50000" step="100"></div>
+      <div class="field"><label>Random Seed</label><input type="number" id="randomSeed" value="0"><div class="hint">0 = random, or fix for reproducibility</div></div>
+      <div class="field"><label>Confidence Display</label>
+        <select id="confidenceDisplay">
+          <option value="90" selected>90th Percentile</option>
+          <option value="95">95th Percentile</option>
+          <option value="75">75th Percentile</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Return Assumptions</div>
+    <div class="section-desc">Historical data bundled from VFINX (1976–2024) and FRED. You can override the assumptions below.</div>
+    <div class="grid grid-3">
+      <div class="field"><label>Equity Mean Return (%)</label><input type="number" id="eqMean" value="10.2" step="0.1"><div class="hint">Historical VFINX: ~10.2%</div></div>
+      <div class="field"><label>Equity Std Dev (%)</label><input type="number" id="eqStd" value="15.5" step="0.1"><div class="hint">Historical VFINX: ~15.5%</div></div>
+      <div class="field"><label>Bond Mean Return (%)</label><input type="number" id="bondMean" value="5.0" step="0.1"></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Bond Std Dev (%)</label><input type="number" id="bondStd" value="4.5" step="0.1"></div>
+      <div class="field"><label>Cash Yield (%)</label><input type="number" id="cashYield" value="3.5" step="0.1"></div>
+      <div class="field"><label>Equity-Bond Correlation</label><input type="number" id="eqBondCorr" value="-0.15" step="0.05" min="-1" max="1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128165;</span> Market Crash Modeling</div>
+    <div class="section-desc">Enable fat-tail modeling to capture severe drawdowns beyond normal distribution.</div>
+    <div class="toggle-row">
+      <span class="fs-14">Enable crash modeling</span>
+      <label class="toggle"><input type="checkbox" id="enableCrashes" checked><span class="slider"></span></label>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>Crash Probability (%/yr)</label><input type="number" id="crashProb" value="4" step="0.5"><div class="hint">~4% matches historical frequency</div></div>
+      <div class="field"><label>Crash Mean Return (%)</label><input type="number" id="crashMean" value="-35" step="1"><div class="hint">Average crash severity</div></div>
+      <div class="field"><label>Crash Std Dev (%)</label><input type="number" id="crashStd" value="10" step="1"></div>
+    </div>
+    <div class="grid grid-2 mt-16">
+      <div class="field"><label>Recovery Period (years)</label><input type="number" id="recoveryYears" value="3" min="1" max="10"><div class="hint">Years of above-average returns after crash</div></div>
+      <div class="field"><label>Recovery Boost (%)</label><input type="number" id="recoveryBoost" value="5" step="1"><div class="hint">Added to mean return during recovery</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Inflation Model</div>
+    <div class="grid grid-3">
+      <div class="field"><label>CPI Mean (%)</label><input type="number" id="cpiMean" value="3.0" step="0.1"><div class="hint">Consumer Price Index, historical mean ~3%</div></div>
+      <div class="field"><label>CPI Std Dev (%)</label><input type="number" id="cpiStd" value="1.2" step="0.1"></div>
+      <div class="field"><label>PCE Mean (%)</label><input type="number" id="pceMean" value="2.5" step="0.1"><div class="hint">Personal Consumption Expenditures</div></div>
+    </div>
+    <div class="grid grid-2 mt-16">
+      <div class="field"><label>PCE Std Dev (%)</label><input type="number" id="pceStd" value="1.0" step="0.1"></div>
+      <div class="field"><label>Use PCE for SS COLA?</label>
+        <select id="usePCEforSS"><option value="no" selected>No (use CPI)</option><option value="yes">Yes</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128203;</span> Historical Data Reference</div>
+    <div class="section-desc">Bundled data used as the basis for simulation parameters. Click to view.</div>
+    <button class="secondary small" onclick="showHistoricalData()">View Historical VFINX Returns</button>
+    <button class="secondary small" onclick="showCPIData()">View CPI History</button>
+  </div>
+</div>
+
+<!-- ====== RESULTS DASHBOARD TAB ====== -->
+<div class="panel" id="panel-results">
+  <div id="resultsPlaceholder" class="card">
+    <div class="card-title"><span class="icon">&#128202;</span> Run a Simulation</div>
+    <p class="section-desc">Configure your parameters in the other tabs, then click "Run Simulation" to see results. The Monte Carlo engine will generate thousands of scenarios and present probability distributions.</p>
+    <button onclick="runSimulation()">Run Simulation</button>
+  </div>
+
+  <div id="resultsContent" class="hidden">
+    <div id="resultsSummary" class="stat-grid"></div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> Portfolio Value Over Time</div>
+      <div class="section-desc">Shaded regions show confidence intervals from Monte Carlo simulation.</div>
+      <div class="chart-container"><canvas id="portfolioChart"></canvas></div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title"><span class="icon">&#127922;</span> Success Probability</div>
+        <div id="successRate" class="stat-value text-green" style="font-size:48px;text-align:center;padding:20px;">--</div>
+        <div class="text-dim" style="text-align:center;">Probability of not running out of money</div>
+        <div class="chart-container" style="height:250px"><canvas id="successChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128176;</span> Terminal Wealth Distribution</div>
+        <div class="chart-container" style="height:300px"><canvas id="terminalChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128181;</span> Annual Cash Flow (Median Scenario)</div>
+      <div class="chart-container"><canvas id="cashflowChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> Withdrawal Rate Over Time</div>
+      <div class="chart-container" style="height:250px"><canvas id="withdrawalRateChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128176;</span> Income Sources Over Time (Median)</div>
+      <div class="chart-container"><canvas id="incomeStackChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128202;</span> Scenario Analysis</div>
+      <div class="scenario-tabs">
+        <div class="scenario-tab active" onclick="showScenario('median')">Median</div>
+        <div class="scenario-tab" onclick="showScenario('worst')">Worst 5%</div>
+        <div class="scenario-tab" onclick="showScenario('best')">Best 5%</div>
+        <div class="scenario-tab" onclick="showScenario('custom')">Custom</div>
+      </div>
+      <div id="scenarioTable"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end content -->
+
+<!-- Modal for historical data -->
+<div id="dataModal" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal">
+    <h3 id="dataModalTitle">Historical Data</h3>
+    <div id="dataModalContent" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions"><button class="secondary small" onclick="document.getElementById('dataModal').classList.add('hidden')">Close</button></div>
+  </div>
+</div>
+
+<script>
+// ======================================================================
+// HISTORICAL DATA (FRED & VFINX)
+// ======================================================================
+
+const VFINX_RETURNS = {
+  1976:23.84, 1977:-7.18, 1978:6.56, 1979:18.44, 1980:32.42,
+  1981:-4.91, 1982:21.55, 1983:22.56, 1984:6.27, 1985:31.73,
+  1986:18.67, 1987:5.25, 1988:16.61, 1989:31.69, 1990:-3.10,
+  1991:30.47, 1992:7.62, 1993:10.08, 1994:1.32, 1995:37.58,
+  1996:22.96, 1997:33.36, 1998:28.58, 1999:21.04, 2000:-9.10,
+  2001:-11.89, 2002:-22.10, 2003:28.68, 2004:10.88, 2005:4.91,
+  2006:15.79, 2007:5.49, 2008:-37.00, 2009:26.46, 2010:15.06,
+  2011:2.11, 2012:16.00, 2013:32.39, 2014:13.69, 2015:1.38,
+  2016:11.96, 2017:21.83, 2018:-4.38, 2019:31.49, 2020:18.40,
+  2021:28.71, 2022:-18.11, 2023:26.29, 2024:25.02
+};
+
+const CPI_DATA = {
+  1976:5.75, 1977:6.50, 1978:7.62, 1979:11.22, 1980:13.58,
+  1981:10.35, 1982:6.16, 1983:3.22, 1984:4.30, 1985:3.55,
+  1986:1.91, 1987:3.66, 1988:4.08, 1989:4.83, 1990:5.39,
+  1991:4.25, 1992:3.03, 1993:2.96, 1994:2.61, 1995:2.81,
+  1996:2.93, 1997:2.34, 1998:1.55, 1999:2.19, 2000:3.38,
+  2001:2.83, 2002:1.59, 2003:2.27, 2004:2.68, 2005:3.39,
+  2006:3.24, 2007:2.85, 2008:3.84, 2009:-0.36, 2010:1.64,
+  2011:3.16, 2012:2.07, 2013:1.46, 2014:1.62, 2015:0.12,
+  2016:1.26, 2017:2.13, 2018:2.44, 2019:1.81, 2020:1.23,
+  2021:4.70, 2022:8.00, 2023:4.12, 2024:2.94
+};
+
+const PCE_DATA = {
+  1976:5.20, 1977:5.80, 1978:7.00, 1979:9.80, 1980:11.50,
+  1981:8.90, 1982:5.30, 1983:3.10, 1984:3.60, 1985:3.20,
+  1986:2.00, 1987:3.30, 1988:3.80, 1989:4.40, 1990:4.80,
+  1991:3.60, 1992:2.80, 1993:2.50, 1994:2.30, 1995:2.40,
+  1996:2.50, 1997:1.90, 1998:1.20, 1999:1.80, 2000:3.00,
+  2001:2.20, 2002:1.40, 2003:1.90, 2004:2.60, 2005:3.00,
+  2006:2.80, 2007:2.70, 2008:3.30, 2009:0.20, 2010:1.70,
+  2011:2.50, 2012:1.80, 2013:1.20, 2014:1.50, 2015:0.30,
+  2016:1.10, 2017:1.80, 2018:2.10, 2019:1.50, 2020:1.20,
+  2021:4.00, 2022:6.30, 2023:3.70, 2024:2.60
+};
+
+// Bond index approximate annual returns (Bloomberg Agg proxy)
+const BOND_RETURNS = {
+  1976:15.6, 1977:3.0, 1978:1.4, 1979:1.9, 1980:2.7,
+  1981:6.3, 1982:32.6, 1983:8.4, 1984:15.1, 1985:22.1,
+  1986:15.3, 1987:2.8, 1988:7.9, 1989:14.5, 1990:9.0,
+  1991:16.0, 1992:7.4, 1993:9.7, 1994:-2.9, 1995:18.5,
+  1996:3.6, 1997:9.6, 1998:8.7, 1999:-0.8, 2000:11.6,
+  2001:8.4, 2002:10.3, 2003:4.1, 2004:4.3, 2005:2.4,
+  2006:4.3, 2007:7.0, 2008:5.2, 2009:5.9, 2010:6.5,
+  2011:7.8, 2012:4.2, 2013:-2.0, 2014:6.0, 2015:0.5,
+  2016:2.6, 2017:3.5, 2018:0.0, 2019:8.7, 2020:7.5,
+  2021:-1.5, 2022:-13.0, 2023:5.5, 2024:1.3
+};
+
+// Federal tax brackets 2025 (Married Filing Jointly)
+const FED_BRACKETS_MFJ = [
+  { limit: 23200, rate: 0.10 },
+  { limit: 94300, rate: 0.12 },
+  { limit: 201050, rate: 0.22 },
+  { limit: 383900, rate: 0.24 },
+  { limit: 487450, rate: 0.32 },
+  { limit: 731200, rate: 0.35 },
+  { limit: Infinity, rate: 0.37 }
+];
+const FED_BRACKETS_SINGLE = [
+  { limit: 11600, rate: 0.10 },
+  { limit: 47150, rate: 0.12 },
+  { limit: 100525, rate: 0.22 },
+  { limit: 191950, rate: 0.24 },
+  { limit: 243725, rate: 0.32 },
+  { limit: 609350, rate: 0.35 },
+  { limit: Infinity, rate: 0.37 }
+];
+
+// California tax brackets 2025 (Married Filing Jointly, approx)
+const CA_BRACKETS_MFJ = [
+  { limit: 20824, rate: 0.01 },
+  { limit: 49368, rate: 0.02 },
+  { limit: 77918, rate: 0.04 },
+  { limit: 108162, rate: 0.06 },
+  { limit: 136700, rate: 0.08 },
+  { limit: 698274, rate: 0.093 },
+  { limit: 837922, rate: 0.103 },
+  { limit: 1396542, rate: 0.113 },
+  { limit: Infinity, rate: 0.123 }
+];
+// Mental health surcharge above $1M: +1%
+const CA_MENTAL_HEALTH_THRESHOLD = 1000000;
+const CA_MENTAL_HEALTH_RATE = 0.01;
+
+// ======================================================================
+// STATE
+// ======================================================================
+let state = {
+  accounts: [
+    { name: '401(k)', type: 'traditional', balance: 850000 },
+    { name: 'Roth IRA', type: 'roth', balance: 220000 },
+    { name: 'Taxable Brokerage', type: 'taxable', balance: 350000, costBasis: 200000 },
+    { name: 'HSA', type: 'hsa', balance: 45000 }
+  ],
+  monthlyExpenses: [
+    { name: 'Groceries', amount: 1200 },
+    { name: 'Utilities', amount: 350 },
+    { name: 'Transportation / Gas', amount: 400 },
+    { name: 'Dining Out', amount: 500 },
+    { name: 'Entertainment', amount: 300 },
+    { name: 'Clothing', amount: 150 },
+    { name: 'Personal Care', amount: 100 },
+    { name: 'Phone / Internet', amount: 250 },
+    { name: 'Subscriptions', amount: 100 },
+    { name: 'Miscellaneous', amount: 400 }
+  ],
+  annualExpenses: [
+    { name: 'Vacation', amount: 8000 },
+    { name: 'Gifts / Holidays', amount: 3000 },
+    { name: 'Home Furnishings', amount: 2000 },
+    { name: 'Professional Services', amount: 1500 }
+  ],
+  recurringExpenses: [
+    { name: 'New Phone', amount: 1200, everyYears: 3 },
+    { name: 'New Laptop', amount: 2000, everyYears: 5 },
+    { name: 'New Car', amount: 45000, everyYears: 8 },
+    { name: 'Roof Replacement', amount: 25000, everyYears: 25 },
+    { name: 'HVAC Replacement', amount: 12000, everyYears: 15 },
+    { name: 'Appliance Replacement', amount: 5000, everyYears: 10 },
+    { name: 'Interior Paint', amount: 8000, everyYears: 7 }
+  ],
+  oneTimeExpenses: [],
+  otherIncome: [],
+  simulationResults: null
+};
+
+// ======================================================================
+// TAB MANAGEMENT
+// ======================================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+// ======================================================================
+// UI RENDERERS
+// ======================================================================
+function renderAccounts() {
+  const el = document.getElementById('accountsList');
+  if (!state.accounts.length) { el.innerHTML = '<p class="text-dim fs-14">No accounts added yet.</p>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Account</th><th>Type</th><th>Balance</th><th>Cost Basis</th><th></th></tr></thead><tbody>' +
+    state.accounts.map((a, i) => `<tr>
+      <td><input value="${a.name}" onchange="state.accounts[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
+      <td><select onchange="state.accounts[${i}].type=this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+        <option value="traditional" ${a.type==='traditional'?'selected':''}>Traditional (401k/IRA)</option>
+        <option value="roth" ${a.type==='roth'?'selected':''}>Roth</option>
+        <option value="taxable" ${a.type==='taxable'?'selected':''}>Taxable</option>
+        <option value="hsa" ${a.type==='hsa'?'selected':''}>HSA</option>
+      </select></td>
+      <td><input type="number" value="${a.balance}" onchange="state.accounts[${i}].balance=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
+      <td>${a.type==='taxable'?`<input type="number" value="${a.costBasis||0}" onchange="state.accounts[${i}].costBasis=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)">`:'—'}</td>
+      <td><button class="small danger" onclick="state.accounts.splice(${i},1);renderAccounts()">&#10005;</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+function addAccount() {
+  state.accounts.push({ name: 'New Account', type: 'taxable', balance: 0, costBasis: 0 });
+  renderAccounts();
+}
+
+function renderExpenseList(listKey, containerId, fields) {
+  const el = document.getElementById(containerId);
+  const items = state[listKey];
+  if (!items.length) { el.innerHTML = '<p class="text-dim fs-14">None added yet.</p>'; return; }
+  el.innerHTML = items.map((item, i) => `<div class="expense-row">
+    <input value="${item.name}" onchange="state.${listKey}[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
+    <span class="text-dim fs-12">$</span>
+    <input type="number" value="${item.amount}" onchange="state.${listKey}[${i}].amount=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
+    ${fields.includes('everyYears') ? `<span class="text-dim fs-12">every</span><input type="number" value="${item.everyYears||1}" onchange="state.${listKey}[${i}].everyYears=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="1"><span class="text-dim fs-12">yr</span>` : ''}
+    ${fields.includes('age') ? `<span class="text-dim fs-12">at age</span><input type="number" value="${item.age||65}" onchange="state.${listKey}[${i}].age=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="18" max="120">` : ''}
+    <button class="small danger" onclick="state.${listKey}.splice(${i},1);renderExpenseList('${listKey}','${containerId}',${JSON.stringify(fields)})">&#10005;</button>
+  </div>`).join('');
+}
+
+function addMonthlyExpense() { state.monthlyExpenses.push({name:'New Expense',amount:0}); renderExpenseList('monthlyExpenses','monthlyExpenseList',[]); }
+function addAnnualExpense() { state.annualExpenses.push({name:'New Expense',amount:0}); renderExpenseList('annualExpenses','annualExpenseList',[]); }
+function addRecurringExpense() { state.recurringExpenses.push({name:'New Item',amount:0,everyYears:5}); renderExpenseList('recurringExpenses','recurringExpenseList',['everyYears']); }
+function addOneTimeExpense() { state.oneTimeExpenses.push({name:'New Event',amount:0,age:65}); renderExpenseList('oneTimeExpenses','oneTimeExpenseList',['age']); }
+
+function renderOtherIncome() {
+  const el = document.getElementById('otherIncomeList');
+  if (!state.otherIncome.length) { el.innerHTML = '<p class="text-dim fs-14">No other income streams.</p>'; return; }
+  el.innerHTML = state.otherIncome.map((item, i) => `<div class="expense-row">
+    <input value="${item.name}" onchange="state.otherIncome[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
+    <span class="text-dim fs-12">$/yr</span>
+    <input type="number" value="${item.amount}" onchange="state.otherIncome[${i}].amount=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
+    <span class="text-dim fs-12">age</span>
+    <input type="number" value="${item.startAge}" onchange="state.otherIncome[${i}].startAge=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
+    <span class="text-dim fs-12">to</span>
+    <input type="number" value="${item.endAge}" onchange="state.otherIncome[${i}].endAge=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
+    <select onchange="state.otherIncome[${i}].inflationAdj=this.value==='yes'" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+      <option value="yes" ${item.inflationAdj?'selected':''}>CPI-adj</option>
+      <option value="no" ${!item.inflationAdj?'selected':''}>Nominal</option>
+    </select>
+    <button class="small danger" onclick="state.otherIncome.splice(${i},1);renderOtherIncome()">&#10005;</button>
+  </div>`).join('');
+}
+function addOtherIncome() { state.otherIncome.push({name:'Pension',amount:24000,startAge:65,endAge:90,inflationAdj:true}); renderOtherIncome(); }
+
+function updateAllocDisplay() {
+  const eq = +document.getElementById('allocEquity').value;
+  const bd = +document.getElementById('allocBonds').value;
+  const ca = +document.getElementById('allocCash').value;
+  document.getElementById('allocEquityVal').textContent = eq + '%';
+  document.getElementById('allocBondsVal').textContent = bd + '%';
+  document.getElementById('allocCashVal').textContent = ca + '%';
+  const warn = document.getElementById('allocWarning');
+  if (eq + bd + ca !== 100) { warn.classList.remove('hidden'); warn.textContent = `Allocation sums to ${eq+bd+ca}% — must be 100%`; }
+  else { warn.classList.add('hidden'); }
+}
+
+function updateExpenseSummary() {
+  const monthly = state.monthlyExpenses.reduce((s,e) => s + e.amount, 0);
+  const annual = state.annualExpenses.reduce((s,e) => s + e.amount, 0);
+  const recurringAnnualized = state.recurringExpenses.reduce((s,e) => s + e.amount / (e.everyYears||1), 0);
+  const health = (+v('healthInsurance') * 12) + +v('healthOOP');
+  const total = monthly * 12 + annual + recurringAnnualized + health;
+  document.getElementById('expenseSummary').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Monthly Living</div><div class="stat-value">$${fmt(monthly)}</div><div class="stat-sub">${fmt(monthly*12)}/yr</div></div>
+    <div class="stat-card"><div class="stat-label">Annual Expenses</div><div class="stat-value">$${fmt(annual)}</div></div>
+    <div class="stat-card"><div class="stat-label">Recurring (annualized)</div><div class="stat-value">$${fmt(Math.round(recurringAnnualized))}</div></div>
+    <div class="stat-card"><div class="stat-label">Healthcare</div><div class="stat-value">$${fmt(health)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Annual</div><div class="stat-value text-accent">$${fmt(Math.round(total))}</div></div>
+  `;
+}
+
+// ======================================================================
+// HELPERS
+// ======================================================================
+function v(id) { return document.getElementById(id).value; }
+function n(id) { return +document.getElementById(id).value; }
+function fmt(x) { return Math.round(x).toLocaleString(); }
+
+function gaussRandom(mean, std, rng) {
+  let u1 = rng(), u2 = rng();
+  while (u1 === 0) u1 = rng();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + std * z;
+}
+
+function makeRng(seed) {
+  if (seed === 0) return Math.random;
+  // Simple mulberry32
+  let s = seed | 0;
+  return function() {
+    s |= 0; s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function calcFedTax(taxableIncome, status, inflationFactor) {
+  const brackets = status === 'single' ? FED_BRACKETS_SINGLE : FED_BRACKETS_MFJ;
+  let tax = 0, prev = 0;
+  for (const b of brackets) {
+    const adjLimit = b.limit === Infinity ? Infinity : b.limit * inflationFactor;
+    const taxable = Math.min(taxableIncome, adjLimit) - prev;
+    if (taxable > 0) tax += taxable * b.rate;
+    prev = adjLimit;
+    if (prev >= taxableIncome) break;
+  }
+  return tax;
+}
+
+function calcCATax(taxableIncome, inflationFactor) {
+  let tax = 0, prev = 0;
+  for (const b of CA_BRACKETS_MFJ) {
+    const adjLimit = b.limit === Infinity ? Infinity : b.limit * inflationFactor;
+    const taxable = Math.min(taxableIncome, adjLimit) - prev;
+    if (taxable > 0) tax += taxable * b.rate;
+    prev = adjLimit;
+    if (prev >= taxableIncome) break;
+  }
+  // Mental health surcharge
+  if (taxableIncome > CA_MENTAL_HEALTH_THRESHOLD * inflationFactor) {
+    tax += (taxableIncome - CA_MENTAL_HEALTH_THRESHOLD * inflationFactor) * CA_MENTAL_HEALTH_RATE;
+  }
+  return tax;
+}
+
+function calcSSBenefit(fraBenefit, fra, claimAge) {
+  if (claimAge < 62) return 0;
+  if (claimAge >= 70) claimAge = 70;
+  const fraMonths = fra * 12;
+  const claimMonths = claimAge * 12;
+  if (claimMonths < fraMonths) {
+    // Early: reduce by 5/9 of 1% per month for first 36 months, then 5/12 of 1% per month
+    const monthsEarly = fraMonths - claimMonths;
+    const first36 = Math.min(monthsEarly, 36);
+    const beyond36 = Math.max(0, monthsEarly - 36);
+    const reduction = first36 * (5/900) + beyond36 * (5/1200);
+    return fraBenefit * (1 - reduction);
+  } else {
+    // Delayed: 8% per year (2/3 of 1% per month)
+    const monthsDelayed = claimMonths - fraMonths;
+    return fraBenefit * (1 + monthsDelayed * (2/300));
+  }
+}
+
+function calcProp13Tax(year, purchaseYear, purchasePrice, baseRate, localOverride, melloRoos, exemption, cap) {
+  const yearsOwned = year - purchaseYear;
+  const assessedValue = purchasePrice * Math.pow(1 + cap/100, yearsOwned);
+  const taxableAssessed = Math.max(0, assessedValue - exemption);
+  return taxableAssessed * (baseRate + localOverride) / 100 + melloRoos;
+}
+
+// ======================================================================
+// PROP 13 CHART
+// ======================================================================
+let prop13ChartInstance = null;
+function updateProp13Chart() {
+  const purchasePrice = n('homePurchasePrice');
+  const purchaseYear = n('homePurchaseYear');
+  const currentValue = n('homeValue');
+  const appreciation = n('homeAppreciation') / 100;
+  const baseRate = n('prop13BaseRate');
+  const localOverride = n('localOverride');
+  const melloRoos = n('melloRoos');
+  const exemption = n('homeExemption');
+  const cap = n('prop13Cap');
+
+  const currentYear = 2026;
+  const years = [];
+  const prop13Taxes = [];
+  const marketTaxes = [];
+  const marketValues = [];
+  const assessedValues = [];
+
+  for (let y = currentYear; y <= currentYear + 35; y++) {
+    years.push(y);
+    const p13 = calcProp13Tax(y, purchaseYear, purchasePrice, baseRate, localOverride, melloRoos, exemption, cap);
+    prop13Taxes.push(Math.round(p13));
+
+    const yearsFromNow = y - currentYear;
+    const mktVal = currentValue * Math.pow(1 + appreciation, yearsFromNow);
+    marketValues.push(Math.round(mktVal));
+    marketTaxes.push(Math.round(mktVal * (baseRate + localOverride) / 100 + melloRoos));
+
+    const yearsOwned = y - purchaseYear;
+    assessedValues.push(Math.round(purchasePrice * Math.pow(1 + cap/100, yearsOwned)));
+  }
+
+  const totalProp13 = prop13Taxes.reduce((a,b) => a+b, 0);
+  const totalMarket = marketTaxes.reduce((a,b) => a+b, 0);
+  const savings = totalMarket - totalProp13;
+
+  document.getElementById('prop13Summary').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Current Prop 13 Tax</div><div class="stat-value text-green">$${fmt(prop13Taxes[0])}</div><div class="stat-sub">/year</div></div>
+    <div class="stat-card"><div class="stat-label">Market-Rate Tax Would Be</div><div class="stat-value text-red">$${fmt(marketTaxes[0])}</div><div class="stat-sub">/year</div></div>
+    <div class="stat-card"><div class="stat-label">Current Assessed Value</div><div class="stat-value">$${fmt(assessedValues[0])}</div></div>
+    <div class="stat-card"><div class="stat-label">35-Year Prop 13 Savings</div><div class="stat-value text-green">$${fmt(savings)}</div></div>
+  `;
+
+  if (prop13ChartInstance) prop13ChartInstance.destroy();
+  prop13ChartInstance = new Chart(document.getElementById('prop13Chart'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Prop 13 Tax', data: prop13Taxes, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.1)', fill: true, tension: 0.3 },
+        { label: 'Market-Rate Tax', data: marketTaxes, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)', fill: true, tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e2e4ed' } } },
+      scales: {
+        x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+        y: { ticks: { color: '#8b8fa3', callback: v => '$'+fmt(v) }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+}
+
+// ======================================================================
+// TAX CHART
+// ======================================================================
+let taxChartInstance = null;
+function updateTaxChart() {
+  const currentAge = n('currentAge');
+  const retAge = n('retirementAge');
+  const lifeExp = n('lifeExpectancy');
+  const salary = n('salary');
+  const raise = n('annualRaise') / 100;
+  const status = v('filingStatus');
+  const fedDeduction = n('fedStdDeduction');
+  const bracketInfl = n('bracketInflation') / 100;
+
+  const ages = [], fedTaxes = [], caTaxes = [], totalTaxes = [];
+
+  for (let age = currentAge; age <= lifeExp; age++) {
+    ages.push(age);
+    const yr = age - currentAge;
+    const inflFactor = Math.pow(1 + bracketInfl, yr);
+
+    let income;
+    if (age < retAge) {
+      income = salary * Math.pow(1 + raise, yr);
+    } else {
+      // Rough estimate: SS + withdrawals
+      const ssBen = calcSSBenefit(n('ssBenefit'), parseFloat(v('ssFRA')), n('ssClaimAge'));
+      income = ssBen * 12 + 50000; // placeholder for withdrawals
+    }
+
+    const fedTaxable = Math.max(0, income - fedDeduction * inflFactor);
+    const fed = calcFedTax(fedTaxable, status, inflFactor);
+    const caDeduction = n('caStdDeduction') * inflFactor;
+    const caTaxable = Math.max(0, income - caDeduction);
+    const ca = calcCATax(caTaxable, inflFactor);
+
+    fedTaxes.push(Math.round(fed));
+    caTaxes.push(Math.round(ca));
+    totalTaxes.push(Math.round(fed + ca));
+  }
+
+  if (taxChartInstance) taxChartInstance.destroy();
+  taxChartInstance = new Chart(document.getElementById('taxChart'), {
+    type: 'bar',
+    data: {
+      labels: ages.map(a => 'Age ' + a),
+      datasets: [
+        { label: 'Federal Tax', data: fedTaxes, backgroundColor: 'rgba(91,138,245,0.7)' },
+        { label: 'CA State Tax', data: caTaxes, backgroundColor: 'rgba(251,146,60,0.7)' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e2e4ed' } } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b8fa3', maxTicksLimit: 20 }, grid: { color: '#2e3347' } },
+        y: { stacked: true, ticks: { color: '#8b8fa3', callback: v => '$'+fmt(v) }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+}
+
+// ======================================================================
+// EXPENSE BREAKDOWN CHART
+// ======================================================================
+let expenseChartInstance = null;
+function updateExpenseChart() {
+  const monthly = state.monthlyExpenses.reduce((s,e) => s + e.amount, 0) * 12;
+  const annual = state.annualExpenses.reduce((s,e) => s + e.amount, 0);
+  const recurring = state.recurringExpenses.reduce((s,e) => s + e.amount / (e.everyYears||1), 0);
+  const health = (+v('healthInsurance') * 12) + +v('healthOOP');
+
+  if (expenseChartInstance) expenseChartInstance.destroy();
+  expenseChartInstance = new Chart(document.getElementById('expenseBreakdownChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Monthly Living', 'Annual', 'Recurring (avg)', 'Healthcare'],
+      datasets: [{ data: [monthly, annual, recurring, health], backgroundColor: ['#5b8af5','#a78bfa','#fb923c','#f87171'] }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#e2e4ed' } } }
+    }
+  });
+}
+
+// ======================================================================
+// MONTE CARLO SIMULATION ENGINE
+// ======================================================================
+function runSimulation() {
+  const currentAge = n('currentAge');
+  const retAge = n('retirementAge');
+  const lifeExp = n('lifeExpectancy');
+  const numSims = n('numSims');
+  const seed = n('randomSeed');
+  const totalYears = lifeExp - currentAge;
+
+  const salary0 = n('salary');
+  const spouseSalary0 = n('spouseSalary');
+  const raise = n('annualRaise') / 100;
+  const spouseRaise = n('spouseRaise') / 100;
+  const spouseRetAge = n('spouseRetAge');
+  const matchPct = n('employerMatch') / 100;
+
+  const eqMean = n('eqMean') / 100;
+  const eqStd = n('eqStd') / 100;
+  const bondMean = n('bondMean') / 100;
+  const bondStd = n('bondStd') / 100;
+  const cashYield = n('cashYield') / 100;
+  const cpiMean = n('cpiMean') / 100;
+  const cpiStd = n('cpiStd') / 100;
+  const enableCrashes = document.getElementById('enableCrashes').checked;
+  const crashProb = n('crashProb') / 100;
+  const crashMean = n('crashMean') / 100;
+  const crashStd = n('crashStd') / 100;
+
+  const allocEq0 = n('allocEquity') / 100;
+  const allocBd0 = n('allocBonds') / 100;
+  const allocCa0 = n('allocCash') / 100;
+  const useGlide = document.getElementById('glidePath').checked;
+  const retEquity = n('retEquity') / 100;
+  const glideYears = n('glideYears');
+
+  const withdrawRate0 = n('withdrawRate') / 100;
+  const status = v('filingStatus');
+  const fedDeduction = n('fedStdDeduction');
+  const bracketInfl = n('bracketInflation') / 100;
+
+  const ssFraBenefit = n('ssBenefit');
+  const ssClaimAge = n('ssClaimAge');
+  const ssFRA = parseFloat(v('ssFRA'));
+  const ssCola = n('ssCola') / 100;
+  const spouseSsFra = n('spouseSsBenefit');
+  const spouseSsClaimAge = n('spouseSsClaimAge');
+
+  const contrib401k = n('contrib401k');
+  const contribIRA = n('contribIRA');
+  const contribRoth = n('contribRoth');
+  const contribTaxable = n('contribTaxable');
+  const contribHSA = n('contribHSA');
+
+  // Housing
+  const homeValue0 = n('homeValue');
+  const homeApprec = n('homeAppreciation') / 100;
+  const mortgagePayment = n('mortgagePayment');
+  const mortgageYearsLeft = n('mortgageYears');
+  const homeMaintPct = n('homeMaintPct') / 100;
+  const homeInsurance = n('homeInsurance');
+  const hoaFees = n('hoaFees') * 12;
+  const purchasePrice = n('homePurchasePrice');
+  const purchaseYear = n('homePurchaseYear');
+  const prop13BaseRate = n('prop13BaseRate');
+  const prop13LocalOverride = n('localOverride');
+  const prop13MelloRoos = n('melloRoos');
+  const prop13Exemption = n('homeExemption');
+  const prop13Cap = n('prop13Cap');
+
+  // Expenses
+  const monthlyBase = state.monthlyExpenses.reduce((s,e) => s + e.amount, 0) * 12;
+  const annualBase = state.annualExpenses.reduce((s,e) => s + e.amount, 0);
+  const healthIns = n('healthInsurance') * 12;
+  const healthOOP = n('healthOOP');
+  const healthInflRate = n('healthInflation') / 100;
+  const medicareAge = n('medicareAge');
+  const medicareCost = n('medicareCost') * 12;
+  const ltcInsurance = n('ltcInsurance');
+
+  // Starting balances
+  let startTrad = 0, startRoth = 0, startTaxable = 0, startHSA = 0;
+  for (const a of state.accounts) {
+    if (a.type === 'traditional') startTrad += a.balance;
+    else if (a.type === 'roth') startRoth += a.balance;
+    else if (a.type === 'taxable') startTaxable += a.balance;
+    else if (a.type === 'hsa') startHSA += a.balance;
+  }
+
+  const rng = makeRng(seed);
+  const allPortfolios = []; // [sim][year]
+  const allFailed = []; // year of failure per sim
+  const allTerminal = []; // terminal value per sim
+  const medianCashflow = { income: [], expenses: [], taxes: [], withdrawals: [], ssIncome: [], portfolio: [] };
+
+  // Run each simulation
+  const simPortfolios = new Float64Array(totalYears + 1);
+  const simMedians = []; // collect all paths for percentile calc
+  const yearlyPortfolios = []; // yearlyPortfolios[year] = array of portfolio values
+
+  for (let yr = 0; yr <= totalYears; yr++) yearlyPortfolios.push([]);
+
+  for (let sim = 0; sim < numSims; sim++) {
+    let trad = startTrad, roth = startRoth, taxable = startTaxable, hsa = startHSA;
+    let cumulCPI = 1;
+    let cumulHealth = 1;
+    let failedYear = -1;
+    let inCrash = false, recoveryLeft = 0;
+
+    for (let yr = 0; yr <= totalYears; yr++) {
+      const age = currentAge + yr;
+      const totalPortfolio = trad + roth + taxable + hsa;
+      yearlyPortfolios[yr].push(totalPortfolio);
+
+      if (yr === totalYears) break;
+
+      // Inflation for this year
+      const cpiThisYear = Math.max(-0.02, gaussRandom(cpiMean, cpiStd, rng));
+      cumulCPI *= (1 + cpiThisYear);
+      cumulHealth *= (1 + Math.max(0, gaussRandom(healthInflRate, 0.015, rng)));
+
+      // Market return
+      let eqReturn;
+      if (enableCrashes && !inCrash && rng() < crashProb) {
+        eqReturn = gaussRandom(crashMean, crashStd, rng);
+        inCrash = true;
+        recoveryLeft = n('recoveryYears');
+      } else if (recoveryLeft > 0) {
+        eqReturn = gaussRandom(eqMean + n('recoveryBoost')/100, eqStd * 0.8, rng);
+        recoveryLeft--;
+        if (recoveryLeft === 0) inCrash = false;
+      } else {
+        eqReturn = gaussRandom(eqMean, eqStd, rng);
+      }
+
+      const bondReturn = gaussRandom(bondMean, bondStd, rng);
+      const cashReturn = cashYield + gaussRandom(0, 0.005, rng);
+
+      // Allocation (with glide path)
+      let allocEq = allocEq0, allocBd = allocBd0, allocCa = allocCa0;
+      if (useGlide && age >= retAge) {
+        const glideProgress = Math.min(1, (age - retAge) / glideYears);
+        allocEq = allocEq0 + (retEquity - allocEq0) * glideProgress;
+        allocBd = (1 - allocEq) * (allocBd0 / (allocBd0 + allocCa0 || 1));
+        allocCa = 1 - allocEq - allocBd;
+      }
+
+      const portfolioReturn = allocEq * eqReturn + allocBd * bondReturn + allocCa * cashReturn;
+
+      // INCOME
+      let earnedIncome = 0;
+      if (age < retAge) earnedIncome += salary0 * Math.pow(1 + raise, yr);
+      if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+
+      // Social Security
+      let ssIncome = 0;
+      if (age >= ssClaimAge) {
+        const ssBase = calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12;
+        const ssYears = age - ssClaimAge;
+        ssIncome += ssBase * Math.pow(1 + ssCola, ssYears);
+      }
+      if (age >= spouseSsClaimAge) {
+        const spBase = calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12;
+        const spYears = age - spouseSsClaimAge;
+        ssIncome += spBase * Math.pow(1 + ssCola, spYears);
+      }
+
+      // Other income
+      let otherInc = 0;
+      for (const oi of state.otherIncome) {
+        if (age >= oi.startAge && age <= oi.endAge) {
+          otherInc += oi.inflationAdj ? oi.amount * cumulCPI : oi.amount;
+        }
+      }
+
+      // EXPENSES
+      let expenses = 0;
+      expenses += monthlyBase * cumulCPI;
+      expenses += annualBase * cumulCPI;
+
+      // Recurring
+      for (const re of state.recurringExpenses) {
+        if (yr > 0 && yr % re.everyYears === 0) expenses += re.amount * cumulCPI;
+      }
+
+      // One-time
+      for (const ot of state.oneTimeExpenses) {
+        if (age === ot.age) expenses += ot.amount * cumulCPI;
+      }
+
+      // Healthcare
+      if (age < medicareAge) {
+        expenses += (healthIns + healthOOP) * cumulHealth;
+      } else {
+        expenses += (medicareCost + healthOOP + ltcInsurance) * cumulHealth;
+      }
+
+      // Housing
+      const currentYr = 2026 + yr;
+      const propTax = calcProp13Tax(currentYr, purchaseYear, purchasePrice, prop13BaseRate, prop13LocalOverride, prop13MelloRoos, prop13Exemption, prop13Cap);
+      const homeVal = homeValue0 * Math.pow(1 + homeApprec, yr);
+      const maint = homeVal * homeMaintPct;
+      const mortgage = yr < mortgageYearsLeft ? mortgagePayment * 12 : 0;
+      expenses += propTax + maint + homeInsurance * cumulCPI + hoaFees * cumulCPI + mortgage;
+
+      // NET NEED
+      const totalIncome = earnedIncome + ssIncome + otherInc;
+      let netNeed = expenses - totalIncome;
+
+      // WITHDRAWAL (retirement)
+      let withdrawal = 0;
+      if (age >= retAge && netNeed > 0 && totalPortfolio > 0) {
+        withdrawal = netNeed;
+        // Withdraw from taxable first, then traditional, then Roth
+        const fromTaxable = Math.min(taxable, withdrawal);
+        taxable -= fromTaxable;
+        withdrawal -= fromTaxable;
+        const fromTrad = Math.min(trad, withdrawal);
+        trad -= fromTrad;
+        withdrawal -= fromTrad;
+        const fromRoth = Math.min(roth, withdrawal);
+        roth -= fromRoth;
+        withdrawal -= fromRoth;
+        const fromHSA = Math.min(hsa, withdrawal);
+        hsa -= fromHSA;
+        withdrawal -= fromHSA;
+      }
+
+      // CONTRIBUTIONS (pre-retirement)
+      if (age < retAge) {
+        const actualSalary = salary0 * Math.pow(1 + raise, yr);
+        const matchAmt = actualSalary * matchPct;
+        trad += contrib401k + matchAmt + contribIRA;
+        roth += contribRoth;
+        hsa += contribHSA;
+        taxable += contribTaxable;
+      }
+
+      // Growth
+      trad *= (1 + portfolioReturn);
+      roth *= (1 + portfolioReturn);
+      taxable *= (1 + portfolioReturn);
+      hsa *= (1 + portfolioReturn);
+
+      // Floor at 0
+      trad = Math.max(0, trad);
+      roth = Math.max(0, roth);
+      taxable = Math.max(0, taxable);
+      hsa = Math.max(0, hsa);
+
+      if (trad + roth + taxable + hsa <= 0 && failedYear === -1 && age >= retAge) {
+        failedYear = yr;
+      }
+    }
+
+    const terminalVal = trad + roth + taxable + hsa;
+    allTerminal.push(terminalVal);
+    allFailed.push(failedYear);
+  }
+
+  // COMPUTE PERCENTILES
+  const confidence = n('confidenceDisplay');
+  const lowerPct = (100 - confidence) / 2 / 100;
+  const upperPct = 1 - lowerPct;
+  const medianVals = [], lowerVals = [], upperVals = [], p10Vals = [], p25Vals = [], p75Vals = [];
+
+  for (let yr = 0; yr <= totalYears; yr++) {
+    const sorted = yearlyPortfolios[yr].slice().sort((a,b) => a - b);
+    const len = sorted.length;
+    medianVals.push(sorted[Math.floor(len * 0.5)]);
+    lowerVals.push(sorted[Math.floor(len * lowerPct)]);
+    upperVals.push(sorted[Math.floor(len * upperPct)]);
+    p10Vals.push(sorted[Math.floor(len * 0.1)]);
+    p25Vals.push(sorted[Math.floor(len * 0.25)]);
+    p75Vals.push(sorted[Math.floor(len * 0.75)]);
+  }
+
+  // SUCCESS RATE
+  const successCount = allFailed.filter(f => f === -1).length;
+  const successRate = (successCount / numSims * 100).toFixed(1);
+
+  // TERMINAL WEALTH
+  const sortedTerminal = allTerminal.slice().sort((a,b) => a - b);
+  const medianTerminal = sortedTerminal[Math.floor(numSims * 0.5)];
+  const p10Terminal = sortedTerminal[Math.floor(numSims * 0.1)];
+  const p90Terminal = sortedTerminal[Math.floor(numSims * 0.9)];
+
+  // DISPLAY RESULTS
+  switchTab('results');
+  document.getElementById('resultsPlaceholder').classList.add('hidden');
+  document.getElementById('resultsContent').classList.remove('hidden');
+
+  // Summary stats
+  document.getElementById('resultsSummary').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Success Rate</div><div class="stat-value ${successRate >= 80 ? 'text-green' : successRate >= 60 ? 'text-orange' : 'text-red'}">${successRate}%</div><div class="stat-sub">${numSims} simulations</div></div>
+    <div class="stat-card"><div class="stat-label">Median Terminal Wealth</div><div class="stat-value">$${fmt(medianTerminal)}</div><div class="stat-sub">at age ${lifeExp}</div></div>
+    <div class="stat-card"><div class="stat-label">10th Percentile Terminal</div><div class="stat-value text-red">$${fmt(Math.max(0,p10Terminal))}</div><div class="stat-sub">Worst 10% outcome</div></div>
+    <div class="stat-card"><div class="stat-label">90th Percentile Terminal</div><div class="stat-value text-green">$${fmt(p90Terminal)}</div><div class="stat-sub">Best 10% outcome</div></div>
+    <div class="stat-card"><div class="stat-label">Starting Portfolio</div><div class="stat-value">$${fmt(startTrad+startRoth+startTaxable+startHSA)}</div></div>
+    <div class="stat-card"><div class="stat-label">Years to Retirement</div><div class="stat-value">${retAge - currentAge}</div><div class="stat-sub">${totalYears} years total</div></div>
+  `;
+
+  document.getElementById('successRate').textContent = successRate + '%';
+  document.getElementById('successRate').className = `stat-value ${successRate >= 80 ? 'text-green' : successRate >= 60 ? 'text-orange' : 'text-red'}`;
+
+  // PORTFOLIO CHART
+  const ageLabels = [];
+  for (let yr = 0; yr <= totalYears; yr++) ageLabels.push(currentAge + yr);
+
+  if (window.portfolioChartInstance) window.portfolioChartInstance.destroy();
+  window.portfolioChartInstance = new Chart(document.getElementById('portfolioChart'), {
+    type: 'line',
+    data: {
+      labels: ageLabels,
+      datasets: [
+        { label: `${confidence}th Upper`, data: upperVals, borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.05)', fill: '+1', pointRadius: 0, borderWidth: 1 },
+        { label: '75th', data: p75Vals, borderColor: 'rgba(74,222,128,0.2)', backgroundColor: 'rgba(74,222,128,0.08)', fill: '+1', pointRadius: 0, borderWidth: 1 },
+        { label: 'Median', data: medianVals, borderColor: '#5b8af5', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0 },
+        { label: '25th', data: p25Vals, borderColor: 'rgba(248,113,113,0.2)', backgroundColor: 'rgba(248,113,113,0.08)', fill: '+1', pointRadius: 0, borderWidth: 1 },
+        { label: `${100-confidence}th Lower`, data: lowerVals, borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'transparent', fill: false, pointRadius: 0, borderWidth: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#e2e4ed' } },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + fmt(ctx.parsed.y) } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Age', color: '#8b8fa3' }, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+        y: { title: { display: true, text: 'Portfolio Value', color: '#8b8fa3' }, ticks: { color: '#8b8fa3', callback: v => '$' + fmt(v) }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+
+  // TERMINAL WEALTH HISTOGRAM
+  const bins = 30;
+  const minT = Math.min(...allTerminal);
+  const maxT = Math.max(...allTerminal);
+  const binWidth = (maxT - minT) / bins;
+  const histogram = new Array(bins).fill(0);
+  const binLabels = [];
+  for (let i = 0; i < bins; i++) {
+    binLabels.push('$' + fmt(minT + i * binWidth));
+    for (const t of allTerminal) {
+      if (t >= minT + i * binWidth && t < minT + (i+1) * binWidth) histogram[i]++;
+    }
+  }
+
+  if (window.terminalChartInstance) window.terminalChartInstance.destroy();
+  window.terminalChartInstance = new Chart(document.getElementById('terminalChart'), {
+    type: 'bar',
+    data: {
+      labels: binLabels,
+      datasets: [{ label: 'Frequency', data: histogram, backgroundColor: 'rgba(167,139,250,0.6)', borderColor: 'rgba(167,139,250,0.8)', borderWidth: 1 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8b8fa3', maxTicksLimit: 8, maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+
+  // SUCCESS DONUT
+  if (window.successChartInstance) window.successChartInstance.destroy();
+  window.successChartInstance = new Chart(document.getElementById('successChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Success', 'Failure'],
+      datasets: [{ data: [successCount, numSims - successCount], backgroundColor: ['#4ade80', '#f87171'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#e2e4ed' } } }
+    }
+  });
+
+  // CASHFLOW CHART (simplified median path)
+  const cashflowIncome = [], cashflowExpenses = [];
+  for (let yr = 0; yr <= totalYears; yr++) {
+    const age = currentAge + yr;
+    const cpi = Math.pow(1 + cpiMean, yr);
+    let inc = 0;
+    if (age < retAge) inc += salary0 * Math.pow(1 + raise, yr) + spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    if (age >= ssClaimAge) inc += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+    if (age >= spouseSsClaimAge) inc += calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - spouseSsClaimAge));
+    for (const oi of state.otherIncome) { if (age >= oi.startAge && age <= oi.endAge) inc += oi.inflationAdj ? oi.amount * cpi : oi.amount; }
+    cashflowIncome.push(Math.round(inc));
+
+    let exp = (monthlyBase + annualBase) * cpi;
+    if (age < medicareAge) exp += (healthIns + healthOOP) * Math.pow(1 + healthInflRate, yr);
+    else exp += (medicareCost + healthOOP + ltcInsurance) * Math.pow(1 + healthInflRate, yr);
+    const curYr = 2026 + yr;
+    exp += calcProp13Tax(curYr, purchaseYear, purchasePrice, prop13BaseRate, prop13LocalOverride, prop13MelloRoos, prop13Exemption, prop13Cap);
+    exp += homeValue0 * Math.pow(1 + homeApprec, yr) * homeMaintPct + homeInsurance * cpi + hoaFees * cpi;
+    if (yr < mortgageYearsLeft) exp += mortgagePayment * 12;
+    cashflowExpenses.push(Math.round(exp));
+  }
+
+  if (window.cashflowChartInstance) window.cashflowChartInstance.destroy();
+  window.cashflowChartInstance = new Chart(document.getElementById('cashflowChart'), {
+    type: 'line',
+    data: {
+      labels: ageLabels,
+      datasets: [
+        { label: 'Income', data: cashflowIncome, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.1)', fill: true, tension: 0.3, pointRadius: 0 },
+        { label: 'Expenses', data: cashflowExpenses, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)', fill: true, tension: 0.3, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e2e4ed' } } },
+      scales: {
+        x: { title: { display: true, text: 'Age', color: '#8b8fa3' }, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+        y: { ticks: { color: '#8b8fa3', callback: v => '$'+fmt(v) }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+
+  // Withdrawal rate chart
+  const wdRates = [];
+  for (let yr = 0; yr <= totalYears; yr++) {
+    const age = currentAge + yr;
+    if (age < retAge || medianVals[yr] <= 0) { wdRates.push(0); continue; }
+    const need = Math.max(0, cashflowExpenses[yr] - cashflowIncome[yr]);
+    wdRates.push(medianVals[yr] > 0 ? (need / medianVals[yr] * 100) : 0);
+  }
+
+  if (window.wdRateChartInstance) window.wdRateChartInstance.destroy();
+  window.wdRateChartInstance = new Chart(document.getElementById('withdrawalRateChart'), {
+    type: 'line',
+    data: {
+      labels: ageLabels,
+      datasets: [
+        { label: 'Withdrawal Rate %', data: wdRates, borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.1)', fill: true, tension: 0.3, pointRadius: 0 },
+        { label: '4% Rule', data: ageLabels.map(() => 4), borderColor: 'rgba(248,113,113,0.5)', borderDash: [5,5], borderWidth: 1, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e2e4ed' } } },
+      scales: {
+        x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+        y: { title: { display: true, text: 'Withdrawal Rate (%)', color: '#8b8fa3' }, ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+
+  // Income stacked chart
+  const ssData = [], earnedData = [], otherData = [], withdrawalData = [];
+  for (let yr = 0; yr <= totalYears; yr++) {
+    const age = currentAge + yr;
+    const cpi = Math.pow(1 + cpiMean, yr);
+    let earned = 0, ss = 0, other = 0;
+    if (age < retAge) earned = salary0 * Math.pow(1 + raise, yr) + spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    if (age >= ssClaimAge) ss += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+    if (age >= spouseSsClaimAge) ss += calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - spouseSsClaimAge));
+    for (const oi of state.otherIncome) { if (age >= oi.startAge && age <= oi.endAge) other += oi.inflationAdj ? oi.amount * cpi : oi.amount; }
+    const totalInc = earned + ss + other;
+    const wd = Math.max(0, cashflowExpenses[yr] - totalInc);
+    earnedData.push(Math.round(earned));
+    ssData.push(Math.round(ss));
+    otherData.push(Math.round(other));
+    withdrawalData.push(Math.round(wd));
+  }
+
+  if (window.incomeStackInstance) window.incomeStackInstance.destroy();
+  window.incomeStackInstance = new Chart(document.getElementById('incomeStackChart'), {
+    type: 'bar',
+    data: {
+      labels: ageLabels,
+      datasets: [
+        { label: 'Earned Income', data: earnedData, backgroundColor: 'rgba(91,138,245,0.7)' },
+        { label: 'Social Security', data: ssData, backgroundColor: 'rgba(74,222,128,0.7)' },
+        { label: 'Other Income', data: otherData, backgroundColor: 'rgba(167,139,250,0.7)' },
+        { label: 'Portfolio Withdrawal', data: withdrawalData, backgroundColor: 'rgba(251,146,60,0.7)' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e2e4ed' } } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b8fa3', maxTicksLimit: 20 }, grid: { color: '#2e3347' } },
+        y: { stacked: true, ticks: { color: '#8b8fa3', callback: v => '$'+fmt(v) }, grid: { color: '#2e3347' } }
+      }
+    }
+  });
+
+  // SCENARIO TABLE
+  showScenario('median');
+
+  state.simulationResults = { medianVals, lowerVals, upperVals, p10Vals, p25Vals, p75Vals, successRate, allTerminal, ageLabels };
+}
+
+function showScenario(type) {
+  document.querySelectorAll('.scenario-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  if (!state.simulationResults) return;
+  const { medianVals, p10Vals, upperVals, ageLabels } = state.simulationResults;
+  const currentAge = n('currentAge');
+  const retAge = n('retirementAge');
+
+  let vals;
+  if (type === 'median') vals = medianVals;
+  else if (type === 'worst') vals = p10Vals;
+  else if (type === 'best') vals = upperVals;
+  else vals = medianVals;
+
+  let html = '<div style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Age</th><th>Year</th><th>Portfolio</th><th>Phase</th></tr></thead><tbody>';
+  for (let i = 0; i < ageLabels.length; i += (ageLabels.length > 40 ? 2 : 1)) {
+    const age = ageLabels[i];
+    const phase = age < retAge ? '<span class="tag tag-blue">Working</span>' : '<span class="tag tag-green">Retired</span>';
+    html += `<tr><td>${age}</td><td>${2026 + (age - currentAge)}</td><td class="text-mono fw-600">$${fmt(vals[i])}</td><td>${phase}</td></tr>`;
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('scenarioTable').innerHTML = html;
+}
+
+// ======================================================================
+// DATA DISPLAY
+// ======================================================================
+function showHistoricalData() {
+  const modal = document.getElementById('dataModal');
+  document.getElementById('dataModalTitle').textContent = 'Historical VFINX Annual Returns';
+  let html = '<table><thead><tr><th>Year</th><th>Return %</th><th>Visual</th></tr></thead><tbody>';
+  for (const [yr, ret] of Object.entries(VFINX_RETURNS)) {
+    const color = ret >= 0 ? 'var(--green)' : 'var(--red)';
+    const width = Math.min(100, Math.abs(ret) * 2);
+    html += `<tr><td>${yr}</td><td style="color:${color}" class="text-mono fw-600">${ret > 0 ? '+' : ''}${ret.toFixed(2)}%</td><td><div style="height:8px;width:${width}%;background:${color};border-radius:4px"></div></td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('dataModalContent').innerHTML = html;
+  modal.classList.remove('hidden');
+}
+
+function showCPIData() {
+  const modal = document.getElementById('dataModal');
+  document.getElementById('dataModalTitle').textContent = 'Historical CPI & PCE Inflation';
+  let html = '<table><thead><tr><th>Year</th><th>CPI %</th><th>PCE %</th></tr></thead><tbody>';
+  for (const yr of Object.keys(CPI_DATA)) {
+    html += `<tr><td>${yr}</td><td class="text-mono">${CPI_DATA[yr].toFixed(2)}%</td><td class="text-mono">${(PCE_DATA[yr]||0).toFixed(2)}%</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('dataModalContent').innerHTML = html;
+  modal.classList.remove('hidden');
+}
+
+// ======================================================================
+// EXPORT / IMPORT
+// ======================================================================
+function exportConfig() {
+  const config = {
+    version: 1,
+    inputs: {},
+    state: { accounts: state.accounts, monthlyExpenses: state.monthlyExpenses, annualExpenses: state.annualExpenses, recurringExpenses: state.recurringExpenses, oneTimeExpenses: state.oneTimeExpenses, otherIncome: state.otherIncome }
+  };
+  document.querySelectorAll('input[id], select[id]').forEach(el => {
+    if (el.type === 'checkbox') config.inputs[el.id] = el.checked;
+    else if (el.type === 'file') return;
+    else config.inputs[el.id] = el.value;
+  });
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'retirement-plan-config.json';
+  a.click();
+}
+
+function importConfig(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const config = JSON.parse(e.target.result);
+      if (config.inputs) {
+        for (const [id, val] of Object.entries(config.inputs)) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (el.type === 'checkbox') el.checked = val;
+          else el.value = val;
+        }
+      }
+      if (config.state) {
+        if (config.state.accounts) state.accounts = config.state.accounts;
+        if (config.state.monthlyExpenses) state.monthlyExpenses = config.state.monthlyExpenses;
+        if (config.state.annualExpenses) state.annualExpenses = config.state.annualExpenses;
+        if (config.state.recurringExpenses) state.recurringExpenses = config.state.recurringExpenses;
+        if (config.state.oneTimeExpenses) state.oneTimeExpenses = config.state.oneTimeExpenses;
+        if (config.state.otherIncome) state.otherIncome = config.state.otherIncome;
+      }
+      initUI();
+      alert('Configuration loaded successfully!');
+    } catch(err) { alert('Error loading config: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ======================================================================
+// INITIALIZATION
+// ======================================================================
+function initUI() {
+  renderAccounts();
+  renderExpenseList('monthlyExpenses', 'monthlyExpenseList', []);
+  renderExpenseList('annualExpenses', 'annualExpenseList', []);
+  renderExpenseList('recurringExpenses', 'recurringExpenseList', ['everyYears']);
+  renderExpenseList('oneTimeExpenses', 'oneTimeExpenseList', ['age']);
+  renderOtherIncome();
+  updateAllocDisplay();
+  updateExpenseSummary();
+  updateProp13Chart();
+  updateTaxChart();
+}
+
+// Auto-update expense summary when switching to expenses tab
+const origSwitch = switchTab;
+switchTab = function(tab) {
+  origSwitch(tab);
+  if (tab === 'expenses') { updateExpenseSummary(); updateExpenseChart(); }
+  if (tab === 'housing') updateProp13Chart();
+  if (tab === 'taxes') updateTaxChart();
+};
+
+document.addEventListener('DOMContentLoaded', initUI);
+</script>
+</body>
+</html>
