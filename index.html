@@ -359,7 +359,7 @@ tr:hover td { background: var(--surface2); }
     <div class="card-title"><span class="icon">&#128200;</span> Prop 13 Tax Projection</div>
     <div id="prop13Summary" class="stat-grid"></div>
     <div class="chart-container"><canvas id="prop13Chart"></canvas></div>
-    <button class="secondary small" onclick="updateProp13Chart()">Update Projection</button>
+    <div class="text-dim fs-12">Updates live as you change values above</div>
   </div>
 
   <div class="card">
@@ -2409,6 +2409,14 @@ function initUI() {
 
   // Attach auto-save after initial render (so initial render doesn't trigger saves)
   setTimeout(attachAutoSave, 100);
+
+  // Live-update Prop 13 chart when any housing input changes
+  const prop13Inputs = ['homeValue','homePurchasePrice','homePurchaseYear','homeAppreciation',
+    'prop13BaseRate','melloRoos','localOverride','homeExemption','prop13Cap'];
+  for (const id of prop13Inputs) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateProp13Chart);
+  }
 
   if (loaded) {
     console.log('Retirement planner: restored saved configuration from localStorage');
