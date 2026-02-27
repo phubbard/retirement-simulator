@@ -206,6 +206,62 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
+  <div class="card" style="border-color: var(--orange);">
+    <div class="card-title"><span class="icon">&#9888;&#65039;</span> Disability Scenario</div>
+    <div class="section-desc">Model a long-term disability event. Disability insurance typically pays ~60-67% of base salary, tax-free if you paid premiums with after-tax dollars. Contributions to 401k, ESPP, and other payroll deductions stop. SSDI may apply — benefits are based on your earnings record and automatically convert to retirement benefits at FRA.</div>
+    <div class="toggle-row">
+      <span class="fs-14 fw-600">Enable Disability Scenario</span>
+      <label class="toggle"><input type="checkbox" id="enableDisability" onchange="toggleDisabilityUI()"><span class="slider"></span></label>
+    </div>
+    <div id="disabilitySettings" class="hidden">
+      <div class="grid grid-3 mt-16">
+        <div class="field"><label>Disability Start Age</label><input type="number" id="disabilityStartAge" value="56" min="18" max="100"><div class="hint">Age when disability begins</div></div>
+        <div class="field"><label>Disability Income (% of salary)</label><input type="number" id="disabilityIncomePct" value="66.7" step="0.1" min="0" max="100"><div class="hint">LTD typically pays 60-67%</div></div>
+        <div class="field"><label>Disability Ends At</label>
+          <select id="disabilityEndAge">
+            <option value="65" selected>Age 65 (standard LTD)</option>
+            <option value="fra">Full Retirement Age</option>
+            <option value="custom">Custom Age</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-3 mt-16">
+        <div class="field"><label>LTD Income Taxable?</label>
+          <select id="ltdTaxable">
+            <option value="no" selected>No (you paid premiums after-tax)</option>
+            <option value="yes">Yes (employer-paid premiums)</option>
+          </select>
+        </div>
+        <div class="field"><label>Custom End Age</label><input type="number" id="disabilityCustomEnd" value="65" min="30" max="100"><div class="hint">Only if "Custom Age" selected</div></div>
+        <div class="field"><label>ESPP Deduction ($/yr, lost)</label><input type="number" id="esppDeduction" value="0" step="500"><div class="hint">Annual ESPP amount that stops</div></div>
+      </div>
+      <div class="alert alert-warn mt-16">
+        <strong>When disability is enabled:</strong> Earned income is replaced by LTD payments. 401k contributions, employer match, and ESPP deductions all stop at disability start age. Salary raises stop.
+      </div>
+
+      <div class="card-title mt-16"><span class="icon">&#128203;</span> SSDI (Social Security Disability)</div>
+      <div class="section-desc">If you qualify for SSDI, you receive benefits based on your earnings record. After 24 months on SSDI, you qualify for Medicare (regardless of age). At your Full Retirement Age, SSDI automatically converts to regular retirement benefits at the same amount — there is no early-claiming reduction. Your earnings record is frozen at disability onset, so your PIA is based on earnings up to that point.</div>
+      <div class="toggle-row">
+        <span class="fs-14">Eligible for SSDI</span>
+        <label class="toggle"><input type="checkbox" id="enableSSDI" checked><span class="slider"></span></label>
+      </div>
+      <div class="grid grid-3 mt-16">
+        <div class="field"><label>Estimated SSDI Benefit ($/mo)</label><input type="number" id="ssdiBenefit" value="0" step="50"><div class="hint">0 = auto-estimate from FRA benefit</div></div>
+        <div class="field"><label>SSDI Waiting Period (months)</label><input type="number" id="ssdiWaitMonths" value="5" min="0" max="24"><div class="hint">Standard: 5-month waiting period</div></div>
+        <div class="field"><label>Medicare After 24mo SSDI?</label>
+          <select id="ssdiMedicare"><option value="yes" selected>Yes</option><option value="no">No</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128200;</span> Unvested Stock / RSUs</div>
+    <div class="section-desc">Model unvested equity that vests on a schedule. On disability, no new grants are issued — only existing unvested shares continue to vest (if your plan allows). Enter the total unvested value and remaining vesting period.</div>
+    <div id="stockGrantsList"></div>
+    <button class="secondary small mt-16" onclick="addStockGrant()">+ Add Stock Grant</button>
+  </div>
+
   <div class="card">
     <div class="card-title"><span class="icon">&#128181;</span> Other Income Streams</div>
     <div id="otherIncomeList"></div>
@@ -725,6 +781,9 @@ let state = {
   ],
   oneTimeExpenses: [],
   otherIncome: [],
+  stockGrants: [
+    { name: 'Current RSU Grant', totalValue: 200000, vestedPct: 0, vestingYears: 3, vestOnDisability: true }
+  ],
   simulationResults: null
 };
 
@@ -802,6 +861,28 @@ function renderOtherIncome() {
   </div>`).join('');
 }
 function addOtherIncome() { state.otherIncome.push({name:'Pension',amount:24000,startAge:65,endAge:90,inflationAdj:true}); renderOtherIncome(); }
+
+function toggleDisabilityUI() {
+  const enabled = document.getElementById('enableDisability').checked;
+  document.getElementById('disabilitySettings').classList.toggle('hidden', !enabled);
+}
+
+function renderStockGrants() {
+  const el = document.getElementById('stockGrantsList');
+  if (!state.stockGrants.length) { el.innerHTML = '<p class="text-dim fs-14">No stock grants added.</p>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Grant Name</th><th>Total Unvested Value</th><th>Vesting Period (yrs)</th><th>Vests on Disability?</th><th></th></tr></thead><tbody>' +
+    state.stockGrants.map((g, i) => `<tr>
+      <td><input value="${g.name}" onchange="state.stockGrants[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
+      <td><input type="number" value="${g.totalValue}" onchange="state.stockGrants[${i}].totalValue=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
+      <td><input type="number" value="${g.vestingYears}" min="0.5" step="0.5" onchange="state.stockGrants[${i}].vestingYears=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:80px;text-align:center"></td>
+      <td><select onchange="state.stockGrants[${i}].vestOnDisability=this.value==='yes'" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+        <option value="yes" ${g.vestOnDisability?'selected':''}>Yes</option>
+        <option value="no" ${!g.vestOnDisability?'selected':''}>No (forfeited)</option>
+      </select></td>
+      <td><button class="small danger" onclick="state.stockGrants.splice(${i},1);renderStockGrants()">&#10005;</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+function addStockGrant() { state.stockGrants.push({name:'New Grant',totalValue:0,vestedPct:0,vestingYears:3,vestOnDisability:true}); renderStockGrants(); }
 
 function updateAllocDisplay() {
   const eq = +document.getElementById('allocEquity').value;
@@ -1120,6 +1201,33 @@ function runSimulation() {
   const contribTaxable = n('contribTaxable');
   const contribHSA = n('contribHSA');
 
+  // Disability
+  const disabilityEnabled = document.getElementById('enableDisability').checked;
+  const disabilityStartAge = n('disabilityStartAge');
+  const disabilityIncomePct = n('disabilityIncomePct') / 100;
+  const disabilityEndSel = v('disabilityEndAge');
+  const disabilityEndAge = disabilityEndSel === 'fra' ? Math.ceil(ssFRA) : disabilityEndSel === 'custom' ? n('disabilityCustomEnd') : 65;
+  const ltdTaxable = v('ltdTaxable') === 'yes';
+  const ssdiEnabled = disabilityEnabled && document.getElementById('enableSSDI').checked;
+  const ssdiBenefitInput = n('ssdiBenefit');
+  const ssdiWaitMonths = n('ssdiWaitMonths');
+  const ssdiMedicare = v('ssdiMedicare') === 'yes';
+  // SSDI benefit: if user entered 0, estimate as ~FRA benefit (PIA frozen at disability onset)
+  const ssdiBenefitMonthly = ssdiBenefitInput > 0 ? ssdiBenefitInput : ssFraBenefit;
+
+  // Stock grants — compute vesting schedule as annual cash events
+  const stockVestingByYear = {}; // year offset → $ vesting that year
+  for (const grant of state.stockGrants) {
+    const annualVest = grant.totalValue / grant.vestingYears;
+    for (let y = 0; y < Math.ceil(grant.vestingYears); y++) {
+      const fraction = Math.min(1, grant.vestingYears - y);
+      const vestAmt = annualVest * fraction;
+      // If disability is enabled and grant doesn't vest on disability, stop vesting at disability start
+      if (disabilityEnabled && !grant.vestOnDisability && (currentAge + y) >= disabilityStartAge) continue;
+      stockVestingByYear[y] = (stockVestingByYear[y] || 0) + vestAmt;
+    }
+  }
+
   // Housing
   const homeValue0 = n('homeValue');
   const homeApprec = n('homeAppreciation') / 100;
@@ -1215,18 +1323,67 @@ function runSimulation() {
 
       const portfolioReturn = allocEq * eqReturn + allocBd * bondReturn + allocCa * cashReturn;
 
+      // DISABILITY STATE for this year
+      const onDisability = disabilityEnabled && age >= disabilityStartAge && age < disabilityEndAge;
+      const postDisability = disabilityEnabled && age >= disabilityEndAge;
+      // Years on SSDI (for Medicare calculation)
+      const ssdiYearsOn = ssdiEnabled && onDisability ? (age - disabilityStartAge) : 0;
+      const ssdiWaitYearFraction = ssdiWaitMonths / 12;
+      const ssdiActive = ssdiEnabled && onDisability && (age - disabilityStartAge) >= ssdiWaitYearFraction;
+      // SSDI triggers Medicare after 24 months
+      const ssdiMedicareKickedIn = ssdiEnabled && ssdiMedicare && (age - disabilityStartAge) >= 2;
+
       // INCOME
       let earnedIncome = 0;
-      if (age < retAge) earnedIncome += salary0 * Math.pow(1 + raise, yr);
-      if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+      let ltdIncome = 0;
+      let stockVestIncome = 0;
 
-      // Social Security
-      let ssIncome = 0;
-      if (age >= ssClaimAge) {
-        const ssBase = calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12;
-        const ssYears = age - ssClaimAge;
-        ssIncome += ssBase * Math.pow(1 + ssCola, ssYears);
+      if (onDisability) {
+        // On disability: LTD pays percentage of salary at time of disability (no raises)
+        const salaryAtDisability = salary0 * Math.pow(1 + raise, disabilityStartAge - currentAge);
+        ltdIncome = salaryAtDisability * disabilityIncomePct;
+        // Spouse still works if applicable
+        if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+      } else if (!postDisability && age < retAge) {
+        // Normal working: full salary + spouse
+        earnedIncome += salary0 * Math.pow(1 + raise, yr);
+        if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+      } else if (postDisability && age < retAge) {
+        // Disability ended but not yet retired — no earned income (or could model return to work)
+        if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+      } else {
+        // Retired
+        if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
       }
+
+      // Stock vesting (linear, happens regardless unless forfeited on disability)
+      if (stockVestingByYear[yr]) {
+        stockVestIncome += stockVestingByYear[yr];
+        // Add vested stock to taxable account (it's taxed as income when it vests)
+        taxable += stockVestIncome;
+      }
+
+      // Social Security / SSDI
+      let ssIncome = 0;
+      if (ssdiActive && age < Math.ceil(ssFRA)) {
+        // SSDI: receive benefits based on PIA (frozen at disability). No early-claiming reduction.
+        // SSDI benefit = PIA (which is approximately the FRA benefit amount)
+        const ssdiYearsSinceStart = age - disabilityStartAge;
+        ssIncome += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, ssdiYearsSinceStart);
+      } else if (ssdiEnabled && disabilityEnabled && age >= Math.ceil(ssFRA)) {
+        // SSDI auto-converts to retirement benefits at FRA — at FULL PIA, no reduction
+        // Even though the person claimed early via SSDI, the conversion is at full FRA amount
+        const yearsFromFRA = age - Math.ceil(ssFRA);
+        ssIncome += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, (age - disabilityStartAge));
+      } else if (!disabilityEnabled || !ssdiEnabled) {
+        // Normal SS claiming
+        if (age >= ssClaimAge) {
+          const ssBase = calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12;
+          const ssYears = age - ssClaimAge;
+          ssIncome += ssBase * Math.pow(1 + ssCola, ssYears);
+        }
+      }
+      // Spouse SS (unaffected by your disability)
       if (age >= spouseSsClaimAge) {
         const spBase = calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12;
         const spYears = age - spouseSsClaimAge;
@@ -1256,8 +1413,9 @@ function runSimulation() {
         if (age === ot.age) expenses += ot.amount * cumulCPI;
       }
 
-      // Healthcare
-      if (age < medicareAge) {
+      // Healthcare — SSDI triggers Medicare after 24 months regardless of age
+      const effectiveMedicareAge = (ssdiMedicareKickedIn) ? Math.min(medicareAge, age) : medicareAge;
+      if (age < effectiveMedicareAge && !ssdiMedicareKickedIn) {
         expenses += (healthIns + healthOOP) * cumulHealth;
       } else {
         expenses += (medicareCost + healthOOP + ltcInsurance) * cumulHealth;
@@ -1271,13 +1429,13 @@ function runSimulation() {
       const mortgage = yr < mortgageYearsLeft ? mortgagePayment * 12 : 0;
       expenses += propTax + maint + homeInsurance * cumulCPI + hoaFees * cumulCPI + mortgage;
 
-      // NET NEED
-      const totalIncome = earnedIncome + ssIncome + otherInc;
+      // NET NEED — LTD income included (may or may not be taxable)
+      const totalIncome = earnedIncome + ltdIncome + ssIncome + otherInc;
       let netNeed = expenses - totalIncome;
 
-      // WITHDRAWAL (retirement)
+      // WITHDRAWAL (when income doesn't cover expenses)
       let withdrawal = 0;
-      if (age >= retAge && netNeed > 0 && totalPortfolio > 0) {
+      if (netNeed > 0 && totalPortfolio > 0) {
         withdrawal = netNeed;
         // Withdraw from taxable first, then traditional, then Roth
         const fromTaxable = Math.min(taxable, withdrawal);
@@ -1294,14 +1452,21 @@ function runSimulation() {
         withdrawal -= fromHSA;
       }
 
-      // CONTRIBUTIONS (pre-retirement)
-      if (age < retAge) {
+      // CONTRIBUTIONS — stop 401k, match, ESPP on disability; IRA/Roth still possible from other funds
+      const canContribute = age < retAge && !onDisability && !postDisability;
+      if (canContribute) {
         const actualSalary = salary0 * Math.pow(1 + raise, yr);
         const matchAmt = actualSalary * matchPct;
         trad += contrib401k + matchAmt + contribIRA;
         roth += contribRoth;
         hsa += contribHSA;
         taxable += contribTaxable;
+      } else if (age < retAge && (onDisability || postDisability)) {
+        // On disability: no 401k, no employer match, no ESPP
+        // Can still contribute to IRA/Roth from other funds if desired
+        // (Conservative: only contribute IRA from LTD income if affordable)
+        roth += contribRoth * 0; // conservative: skip Roth on disability
+        hsa += contribHSA; // HSA still allowed if enrolled
       }
 
       // Growth
@@ -1453,16 +1618,48 @@ function runSimulation() {
   for (let yr = 0; yr <= totalYears; yr++) {
     const age = currentAge + yr;
     const cpi = Math.pow(1 + cpiMean, yr);
+    const onDis = disabilityEnabled && age >= disabilityStartAge && age < disabilityEndAge;
+    const postDis = disabilityEnabled && age >= disabilityEndAge;
+    const ssdiAct = ssdiEnabled && onDis && (age - disabilityStartAge) >= ssdiWaitMonths / 12;
+    const ssdiMedKicked = ssdiEnabled && ssdiMedicare && (age - disabilityStartAge) >= 2;
     let inc = 0;
-    if (age < retAge) inc += salary0 * Math.pow(1 + raise, yr) + spouseSalary0 * Math.pow(1 + spouseRaise, yr);
-    if (age >= ssClaimAge) inc += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+
+    // Earned income
+    if (onDis) {
+      // LTD income
+      const salAtDis = salary0 * Math.pow(1 + raise, disabilityStartAge - currentAge);
+      inc += salAtDis * disabilityIncomePct;
+      if (age < spouseRetAge) inc += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    } else if (age < retAge) {
+      if (!postDis) inc += salary0 * Math.pow(1 + raise, yr);
+      if (age < spouseRetAge) inc += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    } else {
+      if (age < spouseRetAge) inc += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    }
+
+    // Social Security / SSDI
+    if (ssdiAct && age < Math.ceil(ssFRA)) {
+      inc += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+    } else if (ssdiEnabled && disabilityEnabled && age >= Math.ceil(ssFRA)) {
+      inc += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+    } else if (!disabilityEnabled || !ssdiEnabled) {
+      if (age >= ssClaimAge) inc += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+    }
     if (age >= spouseSsClaimAge) inc += calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - spouseSsClaimAge));
+
+    // Stock vesting
+    if (stockVestingByYear[yr]) inc += stockVestingByYear[yr];
+
     for (const oi of state.otherIncome) { if (age >= oi.startAge && age <= oi.endAge) inc += oi.inflationAdj ? oi.amount * cpi : oi.amount; }
     cashflowIncome.push(Math.round(inc));
 
     let exp = (monthlyBase + annualBase) * cpi;
-    if (age < medicareAge) exp += (healthIns + healthOOP) * Math.pow(1 + healthInflRate, yr);
-    else exp += (medicareCost + healthOOP + ltcInsurance) * Math.pow(1 + healthInflRate, yr);
+    // Healthcare with SSDI Medicare
+    if (ssdiMedKicked || age >= medicareAge) {
+      exp += (medicareCost + healthOOP + ltcInsurance) * Math.pow(1 + healthInflRate, yr);
+    } else {
+      exp += (healthIns + healthOOP) * Math.pow(1 + healthInflRate, yr);
+    }
     const curYr = 2026 + yr;
     exp += calcProp13Tax(curYr, purchaseYear, purchasePrice, prop13BaseRate, prop13LocalOverride, prop13MelloRoos, prop13Exemption, prop13Cap);
     exp += homeValue0 * Math.pow(1 + homeApprec, yr) * homeMaintPct + homeInsurance * cpi + hoaFees * cpi;
@@ -1520,19 +1717,45 @@ function runSimulation() {
   });
 
   // Income stacked chart
-  const ssData = [], earnedData = [], otherData = [], withdrawalData = [];
+  const ssData = [], earnedData = [], otherData = [], withdrawalData = [], ltdData = [], stockData = [];
   for (let yr = 0; yr <= totalYears; yr++) {
     const age = currentAge + yr;
     const cpi = Math.pow(1 + cpiMean, yr);
-    let earned = 0, ss = 0, other = 0;
-    if (age < retAge) earned = salary0 * Math.pow(1 + raise, yr) + spouseSalary0 * Math.pow(1 + spouseRaise, yr);
-    if (age >= ssClaimAge) ss += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+    const onDis = disabilityEnabled && age >= disabilityStartAge && age < disabilityEndAge;
+    const postDis = disabilityEnabled && age >= disabilityEndAge;
+    const ssdiAct = ssdiEnabled && onDis && (age - disabilityStartAge) >= ssdiWaitMonths / 12;
+    let earned = 0, ss = 0, other = 0, ltd = 0, stock = 0;
+
+    if (onDis) {
+      const salAtDis = salary0 * Math.pow(1 + raise, disabilityStartAge - currentAge);
+      ltd = salAtDis * disabilityIncomePct;
+      if (age < spouseRetAge) earned += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    } else if (age < retAge) {
+      if (!postDis) earned += salary0 * Math.pow(1 + raise, yr);
+      if (age < spouseRetAge) earned += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    } else {
+      if (age < spouseRetAge) earned += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+    }
+
+    // SS / SSDI
+    if (ssdiAct && age < Math.ceil(ssFRA)) {
+      ss += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+    } else if (ssdiEnabled && disabilityEnabled && age >= Math.ceil(ssFRA)) {
+      ss += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+    } else if (!disabilityEnabled || !ssdiEnabled) {
+      if (age >= ssClaimAge) ss += calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - ssClaimAge));
+    }
     if (age >= spouseSsClaimAge) ss += calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12 * Math.pow(1 + ssCola, Math.max(0, age - spouseSsClaimAge));
+
+    if (stockVestingByYear[yr]) stock = stockVestingByYear[yr];
+
     for (const oi of state.otherIncome) { if (age >= oi.startAge && age <= oi.endAge) other += oi.inflationAdj ? oi.amount * cpi : oi.amount; }
-    const totalInc = earned + ss + other;
+    const totalInc = earned + ltd + ss + other + stock;
     const wd = Math.max(0, cashflowExpenses[yr] - totalInc);
     earnedData.push(Math.round(earned));
+    ltdData.push(Math.round(ltd));
     ssData.push(Math.round(ss));
+    stockData.push(Math.round(stock));
     otherData.push(Math.round(other));
     withdrawalData.push(Math.round(wd));
   }
@@ -1544,7 +1767,9 @@ function runSimulation() {
       labels: ageLabels,
       datasets: [
         { label: 'Earned Income', data: earnedData, backgroundColor: 'rgba(91,138,245,0.7)' },
-        { label: 'Social Security', data: ssData, backgroundColor: 'rgba(74,222,128,0.7)' },
+        { label: 'LTD Income', data: ltdData, backgroundColor: 'rgba(251,191,36,0.7)' },
+        { label: 'Social Security / SSDI', data: ssData, backgroundColor: 'rgba(74,222,128,0.7)' },
+        { label: 'Stock Vesting', data: stockData, backgroundColor: 'rgba(56,189,248,0.7)' },
         { label: 'Other Income', data: otherData, backgroundColor: 'rgba(167,139,250,0.7)' },
         { label: 'Portfolio Withdrawal', data: withdrawalData, backgroundColor: 'rgba(251,146,60,0.7)' }
       ]
@@ -1626,7 +1851,7 @@ function exportConfig() {
   const config = {
     version: 1,
     inputs: {},
-    state: { accounts: state.accounts, monthlyExpenses: state.monthlyExpenses, annualExpenses: state.annualExpenses, recurringExpenses: state.recurringExpenses, oneTimeExpenses: state.oneTimeExpenses, otherIncome: state.otherIncome }
+    state: { accounts: state.accounts, monthlyExpenses: state.monthlyExpenses, annualExpenses: state.annualExpenses, recurringExpenses: state.recurringExpenses, oneTimeExpenses: state.oneTimeExpenses, otherIncome: state.otherIncome, stockGrants: state.stockGrants }
   };
   document.querySelectorAll('input[id], select[id]').forEach(el => {
     if (el.type === 'checkbox') config.inputs[el.id] = el.checked;
@@ -1662,6 +1887,7 @@ function importConfig(event) {
         if (config.state.recurringExpenses) state.recurringExpenses = config.state.recurringExpenses;
         if (config.state.oneTimeExpenses) state.oneTimeExpenses = config.state.oneTimeExpenses;
         if (config.state.otherIncome) state.otherIncome = config.state.otherIncome;
+        if (config.state.stockGrants) state.stockGrants = config.state.stockGrants;
       }
       initUI();
       alert('Configuration loaded successfully!');
@@ -1681,6 +1907,8 @@ function initUI() {
   renderExpenseList('recurringExpenses', 'recurringExpenseList', ['everyYears']);
   renderExpenseList('oneTimeExpenses', 'oneTimeExpenseList', ['age']);
   renderOtherIncome();
+  renderStockGrants();
+  toggleDisabilityUI();
   updateAllocDisplay();
   updateExpenseSummary();
   updateProp13Chart();
