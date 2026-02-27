@@ -393,7 +393,10 @@ tr:hover td { background: var(--surface2); }
     <div class="card-title"><span class="icon">&#128202;</span> Investment Accounts</div>
     <div class="section-desc">Enter current balances. The model will track growth, contributions, and withdrawals across account types with different tax treatments.</div>
     <div id="accountsList"></div>
-    <button class="secondary small mt-16" onclick="addAccount()">+ Add Account</button>
+    <div class="inline-flex mt-16" style="justify-content:space-between;">
+      <button class="secondary small" onclick="addAccount()">+ Add Account</button>
+      <div id="accountsTotal" class="text-mono fw-600 fs-14"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -489,31 +492,48 @@ tr:hover td { background: var(--surface2); }
 
 <!-- ====== EXPENSES TAB ====== -->
 <div class="panel" id="panel-expenses">
+  <div class="card" style="border-color: var(--accent);">
+    <div class="card-title"><span class="icon">&#128202;</span> Total Expenses</div>
+    <div id="expenseGrandTotal" class="inline-flex" style="gap:24px;flex-wrap:wrap;"></div>
+  </div>
+
   <div class="card">
     <div class="card-title"><span class="icon">&#128176;</span> Monthly Living Expenses</div>
     <div class="section-desc">Enter your baseline monthly expenses. These inflate annually at the CPI rate. Housing costs are computed separately from the Housing tab.</div>
     <div id="monthlyExpenseList"></div>
-    <button class="secondary small mt-16" onclick="addMonthlyExpense()">+ Add Monthly Expense</button>
+    <div class="inline-flex mt-16" style="justify-content:space-between;">
+      <button class="secondary small" onclick="addMonthlyExpense()">+ Add Monthly Expense</button>
+      <div id="monthlyExpenseTotal" class="text-mono fw-600 fs-14"></div>
+    </div>
   </div>
 
   <div class="card">
     <div class="card-title"><span class="icon">&#128197;</span> Annual Expenses</div>
     <div id="annualExpenseList"></div>
-    <button class="secondary small mt-16" onclick="addAnnualExpense()">+ Add Annual Expense</button>
+    <div class="inline-flex mt-16" style="justify-content:space-between;">
+      <button class="secondary small" onclick="addAnnualExpense()">+ Add Annual Expense</button>
+      <div id="annualExpenseTotal" class="text-mono fw-600 fs-14"></div>
+    </div>
   </div>
 
   <div class="card">
     <div class="card-title"><span class="icon">&#128260;</span> Recurring Purchases</div>
     <div class="section-desc">Items bought on a cycle — "new phone every 3 years", "car every 8 years", "roof every 20 years", etc. All amounts inflate at CPI.</div>
     <div id="recurringExpenseList"></div>
-    <button class="secondary small mt-16" onclick="addRecurringExpense()">+ Add Recurring Purchase</button>
+    <div class="inline-flex mt-16" style="justify-content:space-between;">
+      <button class="secondary small" onclick="addRecurringExpense()">+ Add Recurring Purchase</button>
+      <div id="recurringExpenseTotal" class="text-mono fw-600 fs-14"></div>
+    </div>
   </div>
 
   <div class="card">
     <div class="card-title"><span class="icon">&#128302;</span> One-Time Future Expenses</div>
     <div class="section-desc">Planned future events — wedding, college tuition, medical procedure, etc.</div>
     <div id="oneTimeExpenseList"></div>
-    <button class="secondary small mt-16" onclick="addOneTimeExpense()">+ Add One-Time Expense</button>
+    <div class="inline-flex mt-16" style="justify-content:space-between;">
+      <button class="secondary small" onclick="addOneTimeExpense()">+ Add One-Time Expense</button>
+      <div id="oneTimeExpenseTotal" class="text-mono fw-600 fs-14"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -528,10 +548,11 @@ tr:hover td { background: var(--surface2); }
       <div class="field"><label>Medicare + Supplement ($/mo)</label><input type="number" id="medicareCost" value="400" step="25"><div class="hint">Parts B, D, and Medigap</div></div>
       <div class="field"><label>Long-Term Care Insurance ($/yr)</label><input type="number" id="ltcInsurance" value="0" step="100"></div>
     </div>
+    <div id="healthcareTotal" class="text-mono fw-600 fs-14 mt-16" style="text-align:right;"></div>
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="icon">&#128202;</span> Expense Summary</div>
+    <div class="card-title"><span class="icon">&#128202;</span> Expense Breakdown</div>
     <div id="expenseSummary" class="stat-grid"></div>
     <div class="chart-container" style="height:300px"><canvas id="expenseBreakdownChart"></canvas></div>
   </div>
@@ -996,14 +1017,41 @@ function updateExpenseSummary() {
   const monthly = state.monthlyExpenses.reduce((s,e) => s + e.amount, 0);
   const annual = state.annualExpenses.reduce((s,e) => s + e.amount, 0);
   const recurringAnnualized = state.recurringExpenses.reduce((s,e) => s + e.amount / (e.everyYears||1), 0);
-  const health = (+v('healthInsurance') * 12) + +v('healthOOP');
-  const total = monthly * 12 + annual + recurringAnnualized + health;
+  const oneTimeTotal = state.oneTimeExpenses.reduce((s,e) => s + e.amount, 0);
+  const healthAnnual = (+v('healthInsurance') * 12) + +v('healthOOP') + +v('ltcInsurance');
+  const total = monthly * 12 + annual + recurringAnnualized + healthAnnual;
+
+  // Grand total at top of page
+  document.getElementById('expenseGrandTotal').innerHTML = `
+    <div><span class="text-dim fs-12" style="text-transform:uppercase;letter-spacing:0.5px;">Monthly</span><br><span class="stat-value text-accent" style="font-size:28px;">$${fmt(Math.round(total / 12))}</span></div>
+    <div><span class="text-dim fs-12" style="text-transform:uppercase;letter-spacing:0.5px;">Annual</span><br><span class="stat-value text-accent" style="font-size:28px;">$${fmt(Math.round(total))}</span></div>
+    <div class="text-dim fs-12" style="align-self:flex-end;">Excludes housing (see Housing tab) and one-time events</div>
+  `;
+
+  // Section totals
+  document.getElementById('monthlyExpenseTotal').innerHTML =
+    `<span class="text-dim">$${fmt(monthly)}/mo</span> &nbsp; <span class="text-accent">$${fmt(monthly * 12)}/yr</span>`;
+
+  document.getElementById('annualExpenseTotal').innerHTML =
+    `<span class="text-dim">$${fmt(Math.round(annual / 12))}/mo</span> &nbsp; <span class="text-accent">$${fmt(annual)}/yr</span>`;
+
+  document.getElementById('recurringExpenseTotal').innerHTML =
+    `<span class="text-dim">$${fmt(Math.round(recurringAnnualized / 12))}/mo avg</span> &nbsp; <span class="text-accent">$${fmt(Math.round(recurringAnnualized))}/yr avg</span>`;
+
+  const oneTimeEl = document.getElementById('oneTimeExpenseTotal');
+  if (oneTimeEl) oneTimeEl.innerHTML = state.oneTimeExpenses.length > 0 ?
+    `<span class="text-accent">$${fmt(oneTimeTotal)} total across ${state.oneTimeExpenses.length} event${state.oneTimeExpenses.length>1?'s':''}</span>` : '';
+
+  document.getElementById('healthcareTotal').innerHTML =
+    `<span class="text-dim">$${fmt(Math.round(healthAnnual / 12))}/mo</span> &nbsp; <span class="text-accent">$${fmt(healthAnnual)}/yr</span>`;
+
+  // Summary breakdown cards
   document.getElementById('expenseSummary').innerHTML = `
     <div class="stat-card"><div class="stat-label">Monthly Living</div><div class="stat-value">$${fmt(monthly)}</div><div class="stat-sub">${fmt(monthly*12)}/yr</div></div>
-    <div class="stat-card"><div class="stat-label">Annual Expenses</div><div class="stat-value">$${fmt(annual)}</div></div>
-    <div class="stat-card"><div class="stat-label">Recurring (annualized)</div><div class="stat-value">$${fmt(Math.round(recurringAnnualized))}</div></div>
-    <div class="stat-card"><div class="stat-label">Healthcare</div><div class="stat-value">$${fmt(health)}</div></div>
-    <div class="stat-card"><div class="stat-label">Total Annual</div><div class="stat-value text-accent">$${fmt(Math.round(total))}</div></div>
+    <div class="stat-card"><div class="stat-label">Annual Expenses</div><div class="stat-value">$${fmt(annual)}</div><div class="stat-sub">${fmt(Math.round(annual/12))}/mo</div></div>
+    <div class="stat-card"><div class="stat-label">Recurring (annualized)</div><div class="stat-value">$${fmt(Math.round(recurringAnnualized))}</div><div class="stat-sub">${fmt(Math.round(recurringAnnualized/12))}/mo</div></div>
+    <div class="stat-card"><div class="stat-label">Healthcare</div><div class="stat-value">$${fmt(healthAnnual)}</div><div class="stat-sub">${fmt(Math.round(healthAnnual/12))}/mo</div></div>
+    <div class="stat-card"><div class="stat-label">Total Annual</div><div class="stat-value text-accent">$${fmt(Math.round(total))}</div><div class="stat-sub">${fmt(Math.round(total/12))}/mo</div></div>
   `;
 }
 
@@ -2374,7 +2422,21 @@ function attachAutoSave() {
 
 // Wrap state-mutating functions to trigger save
 const _origRenderAccounts = renderAccounts;
-renderAccounts = function() { _origRenderAccounts(); saveToStorage(); };
+renderAccounts = function() {
+  _origRenderAccounts();
+  saveToStorage();
+  // Update account totals by type
+  const byType = {};
+  let grandTotal = 0;
+  for (const a of state.accounts) {
+    const label = a.type === 'traditional' ? '403b/IRA' : a.type === '457b' ? '457(b)' : a.type === 'dcp' ? 'DCP' : a.type === 'roth' ? 'Roth' : a.type === 'taxable' ? 'Taxable' : a.type === 'hsa' ? 'HSA' : a.type;
+    byType[label] = (byType[label] || 0) + a.balance;
+    grandTotal += a.balance;
+  }
+  const parts = Object.entries(byType).map(([k,v]) => `<span class="text-dim">${k}:</span> $${fmt(v)}`);
+  const el = document.getElementById('accountsTotal');
+  if (el) el.innerHTML = parts.join(' &nbsp;|&nbsp; ') + ' &nbsp;&nbsp; <span class="text-accent">Total: $' + fmt(grandTotal) + '</span>';
+};
 const _origRenderOtherIncome = renderOtherIncome;
 renderOtherIncome = function() { _origRenderOtherIncome(); saveToStorage(); };
 const _origRenderStockGrants = renderStockGrants;
@@ -2385,6 +2447,7 @@ const _origRenderExpenseList = renderExpenseList;
 renderExpenseList = function(listKey, containerId, fields) {
   _origRenderExpenseList(listKey, containerId, fields);
   saveToStorage();
+  updateExpenseSummary();
 };
 
 // ======================================================================
@@ -2416,6 +2479,13 @@ function initUI() {
   for (const id of prop13Inputs) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updateProp13Chart);
+  }
+
+  // Live-update expense totals when healthcare inputs change
+  const healthInputs = ['healthInsurance','healthOOP','ltcInsurance','medicareCost','medicareAge','healthInflation'];
+  for (const id of healthInputs) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateExpenseSummary);
   }
 
   if (loaded) {
