@@ -130,8 +130,9 @@ tr:hover td { background: var(--surface2); }
 <div class="app-header">
   <h1><span>&#9670;</span> Retirement Financial Planner</h1>
   <div class="header-actions">
-    <button class="secondary small" onclick="exportConfig()">Export Config</button>
-    <button class="secondary small" onclick="document.getElementById('importInput').click()">Import Config</button>
+    <button class="secondary small" onclick="resetToDefaults()" title="Clear saved data and reset to defaults">Reset</button>
+    <button class="secondary small" onclick="exportConfig()">Export</button>
+    <button class="secondary small" onclick="document.getElementById('importInput').click()">Import</button>
     <input type="file" id="importInput" accept=".json" style="display:none" onchange="importConfig(event)">
     <button class="small" onclick="runSimulation()">Run Simulation</button>
   </div>
@@ -821,8 +822,8 @@ function renderAccounts() {
   if (!state.accounts.length) { el.innerHTML = '<p class="text-dim fs-14">No accounts added yet.</p>'; return; }
   el.innerHTML = '<table><thead><tr><th>Account</th><th>Type</th><th>Balance</th><th>Cost Basis</th><th></th></tr></thead><tbody>' +
     state.accounts.map((a, i) => `<tr>
-      <td><input value="${a.name}" onchange="state.accounts[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
-      <td><select onchange="state.accounts[${i}].type=this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+      <td><input value="${a.name}" onchange="state.accounts[${i}].name=this.value;saveToStorage()" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
+      <td><select onchange="state.accounts[${i}].type=this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
         <option value="traditional" ${a.type==='traditional'?'selected':''}>Traditional (401k/403b/IRA)</option>
         <option value="457b" ${a.type==='457b'?'selected':''}>457(b)</option>
         <option value="dcp" ${a.type==='dcp'?'selected':''}>DCP (Deferred Comp)</option>
@@ -830,8 +831,8 @@ function renderAccounts() {
         <option value="taxable" ${a.type==='taxable'?'selected':''}>Taxable</option>
         <option value="hsa" ${a.type==='hsa'?'selected':''}>HSA</option>
       </select></td>
-      <td><input type="number" value="${a.balance}" onchange="state.accounts[${i}].balance=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
-      <td>${a.type==='taxable'?`<input type="number" value="${a.costBasis||0}" onchange="state.accounts[${i}].costBasis=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)">`:'—'}</td>
+      <td><input type="number" value="${a.balance}" onchange="state.accounts[${i}].balance=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
+      <td>${a.type==='taxable'?`<input type="number" value="${a.costBasis||0}" onchange="state.accounts[${i}].costBasis=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)">`:'—'}</td>
       <td><button class="small danger" onclick="state.accounts.splice(${i},1);renderAccounts()">&#10005;</button></td>
     </tr>`).join('') + '</tbody></table>';
 }
@@ -846,11 +847,11 @@ function renderExpenseList(listKey, containerId, fields) {
   const items = state[listKey];
   if (!items.length) { el.innerHTML = '<p class="text-dim fs-14">None added yet.</p>'; return; }
   el.innerHTML = items.map((item, i) => `<div class="expense-row">
-    <input value="${item.name}" onchange="state.${listKey}[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
+    <input value="${item.name}" onchange="state.${listKey}[${i}].name=this.value;saveToStorage()" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
     <span class="text-dim fs-12">$</span>
-    <input type="number" value="${item.amount}" onchange="state.${listKey}[${i}].amount=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
-    ${fields.includes('everyYears') ? `<span class="text-dim fs-12">every</span><input type="number" value="${item.everyYears||1}" onchange="state.${listKey}[${i}].everyYears=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="1"><span class="text-dim fs-12">yr</span>` : ''}
-    ${fields.includes('age') ? `<span class="text-dim fs-12">at age</span><input type="number" value="${item.age||65}" onchange="state.${listKey}[${i}].age=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="18" max="120">` : ''}
+    <input type="number" value="${item.amount}" onchange="state.${listKey}[${i}].amount=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
+    ${fields.includes('everyYears') ? `<span class="text-dim fs-12">every</span><input type="number" value="${item.everyYears||1}" onchange="state.${listKey}[${i}].everyYears=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="1"><span class="text-dim fs-12">yr</span>` : ''}
+    ${fields.includes('age') ? `<span class="text-dim fs-12">at age</span><input type="number" value="${item.age||65}" onchange="state.${listKey}[${i}].age=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center" min="18" max="120">` : ''}
     <button class="small danger" onclick="state.${listKey}.splice(${i},1);renderExpenseList('${listKey}','${containerId}',${JSON.stringify(fields)})">&#10005;</button>
   </div>`).join('');
 }
@@ -864,14 +865,14 @@ function renderOtherIncome() {
   const el = document.getElementById('otherIncomeList');
   if (!state.otherIncome.length) { el.innerHTML = '<p class="text-dim fs-14">No other income streams.</p>'; return; }
   el.innerHTML = state.otherIncome.map((item, i) => `<div class="expense-row">
-    <input value="${item.name}" onchange="state.otherIncome[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
+    <input value="${item.name}" onchange="state.otherIncome[${i}].name=this.value;saveToStorage()" style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1">
     <span class="text-dim fs-12">$/yr</span>
-    <input type="number" value="${item.amount}" onchange="state.otherIncome[${i}].amount=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
+    <input type="number" value="${item.amount}" onchange="state.otherIncome[${i}].amount=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:110px;font-family:var(--mono);text-align:right">
     <span class="text-dim fs-12">age</span>
-    <input type="number" value="${item.startAge}" onchange="state.otherIncome[${i}].startAge=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
+    <input type="number" value="${item.startAge}" onchange="state.otherIncome[${i}].startAge=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
     <span class="text-dim fs-12">to</span>
-    <input type="number" value="${item.endAge}" onchange="state.otherIncome[${i}].endAge=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
-    <select onchange="state.otherIncome[${i}].inflationAdj=this.value==='yes'" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+    <input type="number" value="${item.endAge}" onchange="state.otherIncome[${i}].endAge=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:60px;text-align:center">
+    <select onchange="state.otherIncome[${i}].inflationAdj=this.value==='yes';saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
       <option value="yes" ${item.inflationAdj?'selected':''}>CPI-adj</option>
       <option value="no" ${!item.inflationAdj?'selected':''}>Nominal</option>
     </select>
@@ -890,10 +891,10 @@ function renderStockGrants() {
   if (!state.stockGrants.length) { el.innerHTML = '<p class="text-dim fs-14">No stock grants added.</p>'; return; }
   el.innerHTML = '<table><thead><tr><th>Grant Name</th><th>Total Unvested Value</th><th>Vesting Period (yrs)</th><th>Vests on Disability?</th><th></th></tr></thead><tbody>' +
     state.stockGrants.map((g, i) => `<tr>
-      <td><input value="${g.name}" onchange="state.stockGrants[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
-      <td><input type="number" value="${g.totalValue}" onchange="state.stockGrants[${i}].totalValue=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
-      <td><input type="number" value="${g.vestingYears}" min="0.5" step="0.5" onchange="state.stockGrants[${i}].vestingYears=+this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:80px;text-align:center"></td>
-      <td><select onchange="state.stockGrants[${i}].vestOnDisability=this.value==='yes'" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
+      <td><input value="${g.name}" onchange="state.stockGrants[${i}].name=this.value;saveToStorage()" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
+      <td><input type="number" value="${g.totalValue}" onchange="state.stockGrants[${i}].totalValue=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:140px;font-family:var(--mono)"></td>
+      <td><input type="number" value="${g.vestingYears}" min="0.5" step="0.5" onchange="state.stockGrants[${i}].vestingYears=+this.value;saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px;width:80px;text-align:center"></td>
+      <td><select onchange="state.stockGrants[${i}].vestOnDisability=this.value==='yes';saveToStorage()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
         <option value="yes" ${g.vestOnDisability?'selected':''}>Yes</option>
         <option value="no" ${!g.vestOnDisability?'selected':''}>No (forfeited)</option>
       </select></td>
@@ -1941,9 +1942,114 @@ function importConfig(event) {
 }
 
 // ======================================================================
+// LOCAL STORAGE PERSISTENCE
+// ======================================================================
+const STORAGE_KEY = 'retirementPlanner_v2';
+let _saveTimeout = null;
+
+function saveToStorage() {
+  // Debounce: wait 300ms after last change before writing
+  clearTimeout(_saveTimeout);
+  _saveTimeout = setTimeout(_doSave, 300);
+}
+
+function _doSave() {
+  try {
+    const data = { version: 2, inputs: {}, state: {} };
+
+    // Save all form inputs by ID
+    document.querySelectorAll('input[id], select[id]').forEach(el => {
+      if (el.type === 'file') return;
+      if (el.type === 'checkbox') data.inputs[el.id] = el.checked;
+      else data.inputs[el.id] = el.value;
+    });
+
+    // Save dynamic state arrays
+    data.state.accounts = state.accounts;
+    data.state.monthlyExpenses = state.monthlyExpenses;
+    data.state.annualExpenses = state.annualExpenses;
+    data.state.recurringExpenses = state.recurringExpenses;
+    data.state.oneTimeExpenses = state.oneTimeExpenses;
+    data.state.otherIncome = state.otherIncome;
+    data.state.stockGrants = state.stockGrants;
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // Storage full or unavailable — silently fail
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !data.inputs) return false;
+
+    // Restore form inputs
+    for (const [id, val] of Object.entries(data.inputs)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      if (el.type === 'checkbox') el.checked = val;
+      else el.value = val;
+    }
+
+    // Restore dynamic state
+    if (data.state) {
+      if (data.state.accounts) state.accounts = data.state.accounts;
+      if (data.state.monthlyExpenses) state.monthlyExpenses = data.state.monthlyExpenses;
+      if (data.state.annualExpenses) state.annualExpenses = data.state.annualExpenses;
+      if (data.state.recurringExpenses) state.recurringExpenses = data.state.recurringExpenses;
+      if (data.state.oneTimeExpenses) state.oneTimeExpenses = data.state.oneTimeExpenses;
+      if (data.state.otherIncome) state.otherIncome = data.state.otherIncome;
+      if (data.state.stockGrants) state.stockGrants = data.state.stockGrants;
+    }
+
+    return true;
+  } catch (e) {
+    console.warn('localStorage load failed:', e);
+    return false;
+  }
+}
+
+function resetToDefaults() {
+  if (!confirm('Reset all inputs and data to defaults? This clears your saved configuration.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Attach auto-save listeners to all form inputs
+function attachAutoSave() {
+  document.querySelectorAll('input[id], select[id]').forEach(el => {
+    if (el.type === 'file') return;
+    const events = el.type === 'range' ? ['input'] : ['change'];
+    events.forEach(evt => el.addEventListener(evt, saveToStorage));
+  });
+}
+
+// Wrap state-mutating functions to trigger save
+const _origRenderAccounts = renderAccounts;
+renderAccounts = function() { _origRenderAccounts(); saveToStorage(); };
+const _origRenderOtherIncome = renderOtherIncome;
+renderOtherIncome = function() { _origRenderOtherIncome(); saveToStorage(); };
+const _origRenderStockGrants = renderStockGrants;
+renderStockGrants = function() { _origRenderStockGrants(); saveToStorage(); };
+
+// Intercept expense list renders to also save
+const _origRenderExpenseList = renderExpenseList;
+renderExpenseList = function(listKey, containerId, fields) {
+  _origRenderExpenseList(listKey, containerId, fields);
+  saveToStorage();
+};
+
+// ======================================================================
 // INITIALIZATION
 // ======================================================================
 function initUI() {
+  // Load saved state first (before rendering)
+  const loaded = loadFromStorage();
+
   renderAccounts();
   renderExpenseList('monthlyExpenses', 'monthlyExpenseList', []);
   renderExpenseList('annualExpenses', 'annualExpenseList', []);
@@ -1956,6 +2062,13 @@ function initUI() {
   updateExpenseSummary();
   updateProp13Chart();
   updateTaxChart();
+
+  // Attach auto-save after initial render (so initial render doesn't trigger saves)
+  setTimeout(attachAutoSave, 100);
+
+  if (loaded) {
+    console.log('Retirement planner: restored saved configuration from localStorage');
+  }
 }
 
 // Auto-update expense summary when switching to expenses tab
