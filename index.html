@@ -136,34 +136,46 @@ tr:hover td { background: var(--surface2); }
   .app-header h1 { color: #111 !important; font-size: 18px; }
   .app-header h1 span { color: #333 !important; }
   .header-actions, .tabs { display: none !important; }
-  .content { max-width: 100% !important; padding: 8px !important; }
+  .content { max-width: 100% !important; padding: 4px !important; }
   .panel { display: none !important; }
   #panel-results { display: block !important; }
-  .card { background: #fff !important; border: 1px solid #ccc !important; padding: 12px !important; margin-bottom: 10px !important; break-inside: avoid; page-break-inside: avoid; }
-  .card-title { font-size: 13px !important; color: #111 !important; }
-  .stat-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; gap: 8px !important; }
-  .stat-card { background: #f8f8f8 !important; border: 1px solid #ddd !important; padding: 8px !important; }
-  .stat-label { color: #666 !important; font-size: 9px !important; }
-  .stat-value { font-size: 18px !important; color: #111 !important; }
+  /* Cards: each chart card on its own page to prevent overlap */
+  .card { background: #fff !important; border: 1px solid #ccc !important; padding: 12px !important; margin-bottom: 8px !important; }
+  .card-title { font-size: 13px !important; color: #111 !important; margin-bottom: 8px !important; }
+  /* Stat summary cards stay together */
+  .stat-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; break-inside: avoid; page-break-inside: avoid; }
+  .stat-card { background: #f5f5f5 !important; border: 1px solid #ddd !important; padding: 6px 8px !important; }
+  .stat-label { color: #555 !important; font-size: 9px !important; }
+  .stat-value { font-size: 16px !important; color: #111 !important; }
   .stat-sub { color: #666 !important; }
   .text-green { color: #16a34a !important; }
   .text-red { color: #dc2626 !important; }
+  .text-orange { color: #d97706 !important; }
   .text-accent { color: #2563eb !important; }
-  .chart-container { height: 280px !important; break-inside: avoid; page-break-inside: avoid; }
-  .grid-2 { grid-template-columns: 1fr 1fr !important; }
-  .section-desc { color: #555 !important; }
+  /* Charts: fixed height, force page break before each chart card */
+  .chart-container { height: 260px !important; position: relative !important; }
+  .chart-container canvas { max-height: 260px !important; }
+  /* Each card with a chart gets its own page */
+  .card:has(.chart-container) { page-break-before: auto; page-break-inside: avoid; break-inside: avoid; }
+  /* Side-by-side cards: stack vertically in print */
+  .grid-2 { grid-template-columns: 1fr !important; gap: 8px !important; }
+  /* Success donut and terminal histogram — smaller in single column */
+  #successChart, #terminalChart { max-height: 200px !important; }
+  .section-desc { color: #555 !important; font-size: 10px !important; display: none !important; }
   .scenario-tabs { display: none !important; }
-  #scenarioTable table { font-size: 10px !important; }
-  #scenarioTable th, #scenarioTable td { padding: 3px 6px !important; }
-  .tag { border: 1px solid #999 !important; }
+  #scenarioBody { display: block !important; }
+  #scenarioTable table { font-size: 9px !important; }
+  #scenarioTable th, #scenarioTable td { padding: 2px 4px !important; border-bottom-color: #ddd !important; }
+  .tag { border: 1px solid #999 !important; font-size: 9px !important; }
   .tag-blue { background: #e0ecff !important; color: #1d4ed8 !important; }
   .tag-green { background: #dcfce7 !important; color: #16a34a !important; }
   button { display: none !important; }
   .hidden { display: none !important; }
   .modal-overlay { display: none !important; }
-  @page { margin: 0.5in; size: letter; }
-  /* Print header */
-  #panel-results::before { content: 'Retirement Financial Plan — Simulation Results'; display: block; font-size: 16px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+  /* Hide export card in print */
+  .card:has(#csvScenario) { display: none !important; }
+  @page { margin: 0.4in 0.5in; size: letter; }
+  #panel-results::before { content: 'Retirement Financial Plan — Simulation Results'; display: block; font-size: 16px; font-weight: 700; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #333; }
 }
 </style>
 </head>
@@ -2413,6 +2425,49 @@ switchTab = function(tab) {
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
+
+// ======================================================================
+// PRINT: Restyle charts for light background before printing
+// ======================================================================
+const _printGridColor = '#ddd';
+const _printTickColor = '#555';
+const _printLegendColor = '#333';
+const _screenGridColor = '#2e3347';
+const _screenTickColor = '#8b8fa3';
+const _screenLegendColor = '#e2e4ed';
+
+function _forEachChart(fn) {
+  const ids = ['portfolioChart','successChart','terminalChart','cashflowChart','withdrawalRateChart','incomeStackChart'];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const chart = Chart.getChart(el);
+    if (chart) fn(chart);
+  }
+}
+
+function _setChartColors(gridColor, tickColor, legendColor) {
+  _forEachChart(chart => {
+    if (chart.options.scales) {
+      for (const axis of Object.values(chart.options.scales)) {
+        if (axis.grid) axis.grid.color = gridColor;
+        if (axis.ticks) axis.ticks.color = tickColor;
+        if (axis.title) axis.title.color = tickColor;
+      }
+    }
+    if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+      chart.options.plugins.legend.labels.color = legendColor;
+    }
+    chart.update('none'); // instant update, no animation
+  });
+}
+
+window.addEventListener('beforeprint', () => {
+  _setChartColors(_printGridColor, _printTickColor, _printLegendColor);
+});
+window.addEventListener('afterprint', () => {
+  _setChartColors(_screenGridColor, _screenTickColor, _screenLegendColor);
+});
 </script>
 </body>
 </html>
