@@ -172,7 +172,7 @@ tr:hover td { background: var(--surface2); }
     <div class="grid grid-3">
       <div class="field"><label>Annual Gross Salary ($)</label><input type="number" id="salary" value="180000" step="1000"></div>
       <div class="field"><label>Annual Raise (%)</label><input type="number" id="annualRaise" value="3" step="0.1"><div class="hint">Expected annual increase</div></div>
-      <div class="field"><label>Employer 401k Match (%)</label><input type="number" id="employerMatch" value="4" step="0.5" max="100"><div class="hint">% of salary matched</div></div>
+      <div class="field"><label>Employer 403(b) Match (%)</label><input type="number" id="employerMatch" value="4" step="0.5" max="100"><div class="hint">% of salary matched</div></div>
     </div>
     <div class="grid grid-3 mt-16">
       <div class="field"><label>Spouse Annual Salary ($)</label><input type="number" id="spouseSalary" value="0" step="1000"></div>
@@ -236,7 +236,7 @@ tr:hover td { background: var(--surface2); }
         <div class="field"><label>ESPP Deduction ($/yr, lost)</label><input type="number" id="esppDeduction" value="0" step="500"><div class="hint">Annual ESPP amount that stops</div></div>
       </div>
       <div class="alert alert-warn mt-16">
-        <strong>When disability is enabled:</strong> Earned income is replaced by LTD payments. 401k contributions, employer match, and ESPP deductions all stop at disability start age. Salary raises stop.
+        <strong>When disability is enabled:</strong> Earned income is replaced by LTD payments. 403(b), 457(b), DCP, employer match, and ESPP all stop at disability start age. Salary raises stop. Withdrawals prioritize 457(b) first (no early penalty).
       </div>
 
       <div class="card-title mt-16"><span class="icon">&#128203;</span> SSDI (Social Security Disability)</div>
@@ -378,14 +378,28 @@ tr:hover td { background: var(--surface2); }
 
   <div class="card">
     <div class="card-title"><span class="icon">&#128178;</span> Contributions (Pre-Retirement)</div>
-    <div class="grid grid-3">
-      <div class="field"><label>401k Annual ($)</label><input type="number" id="contrib401k" value="23500" step="500"><div class="hint">2025 limit: $23,500 (+$7,500 catch-up if 50+)</div></div>
-      <div class="field"><label>IRA Annual ($)</label><input type="number" id="contribIRA" value="7000" step="500"><div class="hint">2025 limit: $7,000 (+$1,000 catch-up if 50+)</div></div>
+    <div class="section-desc">403(b) and 457(b) have separate limits — you can max both. DCP contributions are employer-funded and vest on schedule. ESPP deductions stop on disability.</div>
+    <div class="grid grid-4">
+      <div class="field"><label>403(b) Annual ($)</label><input type="number" id="contrib401k" value="23500" step="500"><div class="hint">2025 limit: $23,500 (+$7,500 catch-up 50+)</div></div>
+      <div class="field"><label>457(b) Annual ($)</label><input type="number" id="contrib457b" value="23500" step="500"><div class="hint">Separate $23,500 limit (stacks!)</div></div>
+      <div class="field"><label>IRA Annual ($)</label><input type="number" id="contribIRA" value="7000" step="500"><div class="hint">2025 limit: $7,000 (+$1,000 catch-up 50+)</div></div>
       <div class="field"><label>Roth IRA Annual ($)</label><input type="number" id="contribRoth" value="7000" step="500"></div>
     </div>
-    <div class="grid grid-3 mt-16">
-      <div class="field"><label>Taxable Brokerage ($/yr)</label><input type="number" id="contribTaxable" value="24000" step="1000"></div>
+    <div class="grid grid-4 mt-16">
+      <div class="field"><label>ESPP Annual ($)</label><input type="number" id="contribESPP" value="19800" step="500"><div class="hint">11% of salary; IRS max $25k purchase/yr</div></div>
+      <div class="field"><label>ESPP Discount (%)</label><input type="number" id="esppDiscount" value="15" step="1" min="0" max="15"><div class="hint">Typical: 15% with lookback</div></div>
       <div class="field"><label>HSA Annual ($)</label><input type="number" id="contribHSA" value="8300" step="100"><div class="hint">2025 family limit: $8,300</div></div>
+      <div class="field"><label>Taxable Brokerage ($/yr)</label><input type="number" id="contribTaxable" value="24000" step="1000"></div>
+    </div>
+    <div class="grid grid-3 mt-16">
+      <div class="field"><label>DCP Annual Employer Contrib ($)</label><input type="number" id="contribDCP" value="0" step="1000"><div class="hint">Employer-funded deferred comp</div></div>
+      <div class="field"><label>DCP Vesting Schedule</label>
+        <select id="dcpVesting">
+          <option value="immediate" selected>Immediately Vested</option>
+          <option value="cliff3">3-Year Cliff</option>
+          <option value="graded5">5-Year Graded (20%/yr)</option>
+        </select>
+      </div>
       <div class="field"><label>Increase Contributions w/ Raises?</label>
         <select id="increaseContrib"><option value="yes" selected>Yes</option><option value="no">No</option></select>
       </div>
@@ -747,7 +761,9 @@ const CA_MENTAL_HEALTH_RATE = 0.01;
 // ======================================================================
 let state = {
   accounts: [
-    { name: '401(k)', type: 'traditional', balance: 850000 },
+    { name: '403(b)', type: 'traditional', balance: 850000 },
+    { name: '457(b)', type: '457b', balance: 180000 },
+    { name: 'DCP (Deferred Comp)', type: 'dcp', balance: 120000 },
     { name: 'Roth IRA', type: 'roth', balance: 220000 },
     { name: 'Taxable Brokerage', type: 'taxable', balance: 350000, costBasis: 200000 },
     { name: 'HSA', type: 'hsa', balance: 45000 }
@@ -807,7 +823,9 @@ function renderAccounts() {
     state.accounts.map((a, i) => `<tr>
       <td><input value="${a.name}" onchange="state.accounts[${i}].name=this.value" style="background:transparent;border:none;color:var(--text);font-size:14px;width:100%"></td>
       <td><select onchange="state.accounts[${i}].type=this.value" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px">
-        <option value="traditional" ${a.type==='traditional'?'selected':''}>Traditional (401k/IRA)</option>
+        <option value="traditional" ${a.type==='traditional'?'selected':''}>Traditional (401k/403b/IRA)</option>
+        <option value="457b" ${a.type==='457b'?'selected':''}>457(b)</option>
+        <option value="dcp" ${a.type==='dcp'?'selected':''}>DCP (Deferred Comp)</option>
         <option value="roth" ${a.type==='roth'?'selected':''}>Roth</option>
         <option value="taxable" ${a.type==='taxable'?'selected':''}>Taxable</option>
         <option value="hsa" ${a.type==='hsa'?'selected':''}>HSA</option>
@@ -1196,6 +1214,10 @@ function runSimulation() {
   const spouseSsClaimAge = n('spouseSsClaimAge');
 
   const contrib401k = n('contrib401k');
+  const contrib457b = n('contrib457b');
+  const contribESPP = n('contribESPP');
+  const esppDiscount = n('esppDiscount') / 100;
+  const contribDCP = n('contribDCP');
   const contribIRA = n('contribIRA');
   const contribRoth = n('contribRoth');
   const contribTaxable = n('contribTaxable');
@@ -1255,9 +1277,11 @@ function runSimulation() {
   const ltcInsurance = n('ltcInsurance');
 
   // Starting balances
-  let startTrad = 0, startRoth = 0, startTaxable = 0, startHSA = 0;
+  let startTrad = 0, start457b = 0, startDCP = 0, startRoth = 0, startTaxable = 0, startHSA = 0;
   for (const a of state.accounts) {
     if (a.type === 'traditional') startTrad += a.balance;
+    else if (a.type === '457b') start457b += a.balance;
+    else if (a.type === 'dcp') startDCP += a.balance;
     else if (a.type === 'roth') startRoth += a.balance;
     else if (a.type === 'taxable') startTaxable += a.balance;
     else if (a.type === 'hsa') startHSA += a.balance;
@@ -1277,7 +1301,7 @@ function runSimulation() {
   for (let yr = 0; yr <= totalYears; yr++) yearlyPortfolios.push([]);
 
   for (let sim = 0; sim < numSims; sim++) {
-    let trad = startTrad, roth = startRoth, taxable = startTaxable, hsa = startHSA;
+    let trad = startTrad, b457 = start457b, dcp = startDCP, roth = startRoth, taxable = startTaxable, hsa = startHSA;
     let cumulCPI = 1;
     let cumulHealth = 1;
     let failedYear = -1;
@@ -1285,7 +1309,7 @@ function runSimulation() {
 
     for (let yr = 0; yr <= totalYears; yr++) {
       const age = currentAge + yr;
-      const totalPortfolio = trad + roth + taxable + hsa;
+      const totalPortfolio = trad + b457 + dcp + roth + taxable + hsa;
       yearlyPortfolios[yr].push(totalPortfolio);
 
       if (yr === totalYears) break;
@@ -1434,59 +1458,78 @@ function runSimulation() {
       let netNeed = expenses - totalIncome;
 
       // WITHDRAWAL (when income doesn't cover expenses)
+      // Order: 457(b) first (no 10% early penalty at any age), then DCP,
+      // then taxable, then traditional (403b/IRA), then HSA, then Roth last
       let withdrawal = 0;
       if (netNeed > 0 && totalPortfolio > 0) {
         withdrawal = netNeed;
-        // Withdraw from taxable first, then traditional, then Roth
+        // 457(b) — no early withdrawal penalty, ideal pre-59.5
+        const from457 = Math.min(b457, withdrawal);
+        b457 -= from457;
+        withdrawal -= from457;
+        // DCP — pays out at separation/disability per plan terms
+        const fromDCP = Math.min(dcp, withdrawal);
+        dcp -= fromDCP;
+        withdrawal -= fromDCP;
+        // Taxable
         const fromTaxable = Math.min(taxable, withdrawal);
         taxable -= fromTaxable;
         withdrawal -= fromTaxable;
+        // Traditional (403b/IRA) — 10% penalty if under 59.5 (not modeled yet)
         const fromTrad = Math.min(trad, withdrawal);
         trad -= fromTrad;
         withdrawal -= fromTrad;
-        const fromRoth = Math.min(roth, withdrawal);
-        roth -= fromRoth;
-        withdrawal -= fromRoth;
+        // HSA — penalty-free for medical expenses
         const fromHSA = Math.min(hsa, withdrawal);
         hsa -= fromHSA;
         withdrawal -= fromHSA;
+        // Roth — last (tax-free growth, preserve longest)
+        const fromRoth = Math.min(roth, withdrawal);
+        roth -= fromRoth;
+        withdrawal -= fromRoth;
       }
 
-      // CONTRIBUTIONS — stop 401k, match, ESPP on disability; IRA/Roth still possible from other funds
+      // CONTRIBUTIONS — stop 403b, 457b, match, ESPP, DCP on disability
       const canContribute = age < retAge && !onDisability && !postDisability;
       if (canContribute) {
         const actualSalary = salary0 * Math.pow(1 + raise, yr);
         const matchAmt = actualSalary * matchPct;
         trad += contrib401k + matchAmt + contribIRA;
+        b457 += contrib457b;
+        dcp += contribDCP;
         roth += contribRoth;
         hsa += contribHSA;
-        taxable += contribTaxable;
+        // ESPP: deduction buys stock at discount, net gain goes to taxable
+        const esppShares = contribESPP / (1 - esppDiscount); // value of shares purchased
+        taxable += esppShares + contribTaxable;
       } else if (age < retAge && (onDisability || postDisability)) {
-        // On disability: no 401k, no employer match, no ESPP
-        // Can still contribute to IRA/Roth from other funds if desired
-        // (Conservative: only contribute IRA from LTD income if affordable)
-        roth += contribRoth * 0; // conservative: skip Roth on disability
-        hsa += contribHSA; // HSA still allowed if enrolled
+        // On disability: no 403b, 457b, employer match, ESPP, DCP contributions
+        // HSA still allowed if enrolled in HDHP
+        hsa += contribHSA;
       }
 
       // Growth
       trad *= (1 + portfolioReturn);
+      b457 *= (1 + portfolioReturn);
+      dcp *= (1 + portfolioReturn);
       roth *= (1 + portfolioReturn);
       taxable *= (1 + portfolioReturn);
       hsa *= (1 + portfolioReturn);
 
       // Floor at 0
       trad = Math.max(0, trad);
+      b457 = Math.max(0, b457);
+      dcp = Math.max(0, dcp);
       roth = Math.max(0, roth);
       taxable = Math.max(0, taxable);
       hsa = Math.max(0, hsa);
 
-      if (trad + roth + taxable + hsa <= 0 && failedYear === -1 && age >= retAge) {
+      if (trad + b457 + dcp + roth + taxable + hsa <= 0 && failedYear === -1 && age >= retAge) {
         failedYear = yr;
       }
     }
 
-    const terminalVal = trad + roth + taxable + hsa;
+    const terminalVal = trad + b457 + dcp + roth + taxable + hsa;
     allTerminal.push(terminalVal);
     allFailed.push(failedYear);
   }
@@ -1529,7 +1572,7 @@ function runSimulation() {
     <div class="stat-card"><div class="stat-label">Median Terminal Wealth</div><div class="stat-value">$${fmt(medianTerminal)}</div><div class="stat-sub">at age ${lifeExp}</div></div>
     <div class="stat-card"><div class="stat-label">10th Percentile Terminal</div><div class="stat-value text-red">$${fmt(Math.max(0,p10Terminal))}</div><div class="stat-sub">Worst 10% outcome</div></div>
     <div class="stat-card"><div class="stat-label">90th Percentile Terminal</div><div class="stat-value text-green">$${fmt(p90Terminal)}</div><div class="stat-sub">Best 10% outcome</div></div>
-    <div class="stat-card"><div class="stat-label">Starting Portfolio</div><div class="stat-value">$${fmt(startTrad+startRoth+startTaxable+startHSA)}</div></div>
+    <div class="stat-card"><div class="stat-label">Starting Portfolio</div><div class="stat-value">$${fmt(startTrad+start457b+startDCP+startRoth+startTaxable+startHSA)}</div></div>
     <div class="stat-card"><div class="stat-label">Years to Retirement</div><div class="stat-value">${retAge - currentAge}</div><div class="stat-sub">${totalYears} years total</div></div>
   `;
 
