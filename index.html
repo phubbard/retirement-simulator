@@ -198,6 +198,7 @@ tr:hover td { background: var(--surface2); }
   <div class="tab" data-tab="assets" onclick="switchTab('assets')">Assets & Investments</div>
   <div class="tab" data-tab="expenses" onclick="switchTab('expenses')">Expenses</div>
   <div class="tab" data-tab="taxes" onclick="switchTab('taxes')">Tax Strategy</div>
+  <div class="tab" data-tab="relocation" onclick="switchTab('relocation')">Relocation Scenario</div>
   <div class="tab" data-tab="simulation" onclick="switchTab('simulation')">Simulation Settings</div>
   <div class="tab" data-tab="results" onclick="switchTab('results')">Results Dashboard</div>
   <div class="tab" data-tab="about" onclick="switchTab('about')">About</div>
@@ -597,6 +598,221 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- ====== RELOCATION SCENARIO TAB ====== -->
+<div class="panel" id="panel-relocation">
+
+  <div class="card" style="border-color: var(--accent);">
+    <div class="card-title"><span class="icon">&#9992;</span> Relocation Scenario</div>
+    <div class="inline-flex" style="margin-bottom:16px;">
+      <input type="checkbox" id="enableRelocation" onchange="updateRelocationUI();saveToStorage()">
+      <label for="enableRelocation" style="cursor:pointer;font-weight:500;">Enable relocation modeling</label>
+    </div>
+    <p class="hint">Compare staying in your current home vs. moving to a different city or state. Relocation analysis runs alongside the main simulation when enabled.</p>
+  </div>
+
+  <div id="relocationSettings" class="hidden">
+
+    <!-- TIMING -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> Move Timing</div>
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Mode</label>
+          <select id="relocMode" onchange="updateRelocationUI();saveToStorage()">
+            <option value="fixed">Fixed move age</option>
+            <option value="sweep">Optimizer (sweep ages)</option>
+          </select>
+        </div>
+        <div class="field" id="relocFixedField">
+          <label>Move at age</label>
+          <input type="number" id="relocMoveAge" value="55" min="30" max="90" onchange="updateRelocationPreview();saveToStorage()">
+        </div>
+        <div class="field hidden" id="relocSweepStartField">
+          <label>Sweep from age</label>
+          <input type="number" id="relocSweepStart" value="52" min="30" max="85" onchange="saveToStorage()">
+        </div>
+        <div class="field hidden" id="relocSweepEndField">
+          <label>Sweep to age</label>
+          <input type="number" id="relocSweepEnd" value="62" min="35" max="90" onchange="saveToStorage()">
+        </div>
+        <div class="field hidden" id="relocSweepStepField">
+          <label>Step (years)</label>
+          <input type="number" id="relocSweepStep" value="1" min="1" max="5" onchange="saveToStorage()">
+        </div>
+      </div>
+    </div>
+
+    <!-- DESTINATION -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127961;</span> Destination</div>
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Current Metro</label>
+          <select id="relocCurrentMetro" onchange="updateRelocationPreview();saveToStorage()">
+          </select>
+        </div>
+        <div class="field">
+          <label>Destination State</label>
+          <select id="relocDestState" onchange="updateRelocationMetros();updateRelocationPreview();saveToStorage()">
+            <option value="NV">Nevada</option>
+            <option value="TX">Texas</option>
+            <option value="FL">Florida</option>
+            <option value="WA">Washington</option>
+            <option value="OR">Oregon</option>
+            <option value="AZ">Arizona</option>
+            <option value="CA">California (intrastate)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Destination Metro</label>
+          <select id="relocDestMetro" onchange="updateRelocationPreview();saveToStorage()">
+          </select>
+        </div>
+      </div>
+      <div id="colComparison" class="stat-grid" style="margin-top:16px;"></div>
+    </div>
+
+    <!-- HOUSING STRATEGY -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127968;</span> Housing Strategy</div>
+      <div class="grid grid-3" style="margin-bottom:16px;">
+        <div class="field">
+          <label>Strategy</label>
+          <select id="relocHousingStrategy" onchange="updateRelocationHousingUI();saveToStorage()">
+            <option value="sell_buy">Sell current home & buy new</option>
+            <option value="sell_rent">Sell current home & rent</option>
+            <option value="keep_rent">Keep as rental & rent new</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Closing costs (%)</label>
+          <input type="number" id="relocClosingPct" value="6" min="0" max="12" step="0.5" onchange="updateRelocationPreview();saveToStorage()">
+          <div class="hint">Agent fees, title, escrow (5-7% typical)</div>
+        </div>
+        <div class="field">
+          <label>Moving costs ($)</label>
+          <input type="number" id="relocMovingCosts" value="15000" min="0" step="1000" onchange="updateRelocationPreview();saveToStorage()">
+        </div>
+      </div>
+
+      <!-- Sell & Buy sub-section -->
+      <div id="relocBuySection">
+        <div class="section-desc" style="margin-bottom:12px;color:var(--text-dim);font-size:13px;font-weight:600;">New Home Details</div>
+        <div class="grid grid-4">
+          <div class="field">
+            <label>Purchase price ($)</label>
+            <input type="number" id="relocNewPrice" value="500000" min="0" step="10000" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Appreciation (%/yr)</label>
+            <input type="number" id="relocNewApprec" value="3.5" min="0" max="15" step="0.5" onchange="saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Property tax rate (%)</label>
+            <input type="number" id="relocNewPropTaxRate" value="0.53" min="0" max="5" step="0.01" onchange="updateRelocationPreview();saveToStorage()">
+            <div class="hint" id="relocPropTaxHint">State median shown</div>
+          </div>
+          <div class="field">
+            <label>Monthly HOA ($)</label>
+            <input type="number" id="relocNewHOA" value="0" min="0" step="25" onchange="saveToStorage()">
+          </div>
+        </div>
+        <div class="grid grid-4" style="margin-top:12px;">
+          <div class="field">
+            <label>New mortgage?</label>
+            <select id="relocNewMortgage" onchange="updateRelocationHousingUI();saveToStorage()">
+              <option value="yes">Yes</option>
+              <option value="no">No (cash purchase)</option>
+            </select>
+          </div>
+          <div class="field" id="relocMortAmtField">
+            <label>Mortgage amount ($)</label>
+            <input type="number" id="relocMortAmt" value="300000" min="0" step="10000" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field" id="relocMortRateField">
+            <label>Rate (%)</label>
+            <input type="number" id="relocMortRate" value="6.5" min="0" max="15" step="0.125" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field" id="relocMortYearsField">
+            <label>Term (years)</label>
+            <input type="number" id="relocMortYears" value="30" min="5" max="30" step="5" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Sell & Rent sub-section -->
+      <div id="relocRentSection" class="hidden">
+        <div class="section-desc" style="margin-bottom:12px;color:var(--text-dim);font-size:13px;font-weight:600;">Rental in Destination</div>
+        <div class="grid grid-3">
+          <div class="field">
+            <label>Monthly rent ($)</label>
+            <input type="number" id="relocRentMonthly" value="2500" min="0" step="100" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Annual rent increase (%)</label>
+            <input type="number" id="relocRentInflation" value="3.0" min="0" max="10" step="0.5" onchange="saveToStorage()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Keep & Rent sub-section -->
+      <div id="relocKeepSection" class="hidden">
+        <div class="section-desc" style="margin-bottom:12px;color:var(--text-dim);font-size:13px;font-weight:600;">Rental Income from Current Home</div>
+        <div class="grid grid-4">
+          <div class="field">
+            <label>Monthly gross rent ($)</label>
+            <input type="number" id="relocRentalIncome" value="4500" min="0" step="100" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Vacancy rate (%)</label>
+            <input type="number" id="relocVacancyRate" value="5" min="0" max="25" step="1" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Property mgmt fee (%)</label>
+            <input type="number" id="relocMgmtFee" value="8" min="0" max="15" step="1" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Maintenance (% of rent)</label>
+            <input type="number" id="relocMaintPct" value="10" min="0" max="25" step="1" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+        </div>
+        <div class="section-desc" style="margin-top:12px;margin-bottom:12px;color:var(--text-dim);font-size:13px;font-weight:600;">Your New Rental in Destination</div>
+        <div class="grid grid-3">
+          <div class="field">
+            <label>Monthly rent ($)</label>
+            <input type="number" id="relocKeepNewRent" value="2500" min="0" step="100" onchange="updateRelocationPreview();saveToStorage()">
+          </div>
+          <div class="field">
+            <label>Annual rent increase (%)</label>
+            <input type="number" id="relocKeepRentInfl" value="3.0" min="0" max="10" step="0.5" onchange="saveToStorage()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAX & FINANCIAL PREVIEW -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128176;</span> Financial Preview</div>
+      <div class="section-desc" style="margin-bottom:12px;">Estimates based on current inputs. Run simulation for Monte Carlo results.</div>
+      <div id="relocFinancialPreview" class="stat-grid"></div>
+    </div>
+
+    <!-- RELOCATION RESULTS (populated after simulation) -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> Relocation vs. Stay Comparison</div>
+      <div id="relocResultsPlaceholder">
+        <p class="section-desc">Run the main simulation with relocation enabled to see comparative results here.</p>
+      </div>
+      <div id="relocResultsContent" class="hidden">
+        <div id="relocSummaryStats" class="stat-grid" style="margin-bottom:16px;"></div>
+        <div class="chart-container"><canvas id="relocationChart"></canvas></div>
+        <div id="relocComparisonTable" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+  </div><!-- end relocationSettings -->
+</div>
+
 <!-- ====== SIMULATION SETTINGS TAB ====== -->
 <div class="panel" id="panel-simulation">
   <div class="card">
@@ -797,7 +1013,7 @@ tr:hover td { background: var(--surface2); }
 </div>
 
 <script>
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 // ======================================================================
 // HISTORICAL DATA (FRED & VFINX)
@@ -893,6 +1109,78 @@ const CA_MENTAL_HEALTH_THRESHOLD = 1000000;
 const CA_MENTAL_HEALTH_RATE = 0.01;
 
 // ======================================================================
+// RELOCATION DATA: STATE TAX BRACKETS & COL INDICES
+// ======================================================================
+
+// Oregon 2025 MFJ brackets (OR DOR, indexed for 2025)
+const OR_BRACKETS_MFJ = [
+  { limit: 8800, rate: 0.0475 },
+  { limit: 22100, rate: 0.0675 },
+  { limit: 250000, rate: 0.0875 },
+  { limit: Infinity, rate: 0.099 }
+];
+
+// Arizona 2023+ flat tax (2.5%)
+const AZ_BRACKETS_MFJ = [
+  { limit: Infinity, rate: 0.025 }
+];
+
+// Washington has no income tax but has 7% long-term capital gains tax over $270k (2025)
+const WA_LTCG_THRESHOLD = 270000;
+const WA_LTCG_RATE = 0.07;
+
+const DESTINATION_STATES = {
+  CA: { name: 'California', abbr: 'CA', hasIncomeTax: true, hasCapGainsTax: true, medianPropertyTaxRate: 0.71, brackets: CA_BRACKETS_MFJ },
+  NV: { name: 'Nevada', abbr: 'NV', hasIncomeTax: false, hasCapGainsTax: false, medianPropertyTaxRate: 0.53 },
+  TX: { name: 'Texas', abbr: 'TX', hasIncomeTax: false, hasCapGainsTax: false, medianPropertyTaxRate: 1.60 },
+  FL: { name: 'Florida', abbr: 'FL', hasIncomeTax: false, hasCapGainsTax: false, medianPropertyTaxRate: 0.80 },
+  WA: { name: 'Washington', abbr: 'WA', hasIncomeTax: false, hasCapGainsTax: true, medianPropertyTaxRate: 0.87 },
+  OR: { name: 'Oregon', abbr: 'OR', hasIncomeTax: true, hasCapGainsTax: true, medianPropertyTaxRate: 0.82, brackets: OR_BRACKETS_MFJ },
+  AZ: { name: 'Arizona', abbr: 'AZ', hasIncomeTax: true, hasCapGainsTax: true, medianPropertyTaxRate: 0.51, brackets: AZ_BRACKETS_MFJ }
+};
+
+// Home sale capital gains exclusion (IRC §121)
+const HOME_SALE_EXCLUSION = { married: 500000, single: 250000, head: 250000 };
+
+// Cost-of-living indices by metro (national average = 100)
+// Sources: BLS Regional Price Parities, C2ER Cost of Living Index
+const METRO_COL_DATA = {
+  // California
+  'San Francisco, CA':   { state: 'CA', housing: 222, healthcare: 118, groceries: 112, utilities: 115, transportation: 120, insurance: 115, overall: 170 },
+  'San Jose, CA':        { state: 'CA', housing: 215, healthcare: 116, groceries: 110, utilities: 113, transportation: 118, insurance: 113, overall: 165 },
+  'Los Angeles, CA':     { state: 'CA', housing: 178, healthcare: 112, groceries: 108, utilities: 108, transportation: 115, insurance: 112, overall: 150 },
+  'San Diego, CA':       { state: 'CA', housing: 175, healthcare: 110, groceries: 106, utilities: 106, transportation: 112, insurance: 110, overall: 147 },
+  'Sacramento, CA':      { state: 'CA', housing: 135, healthcare: 108, groceries: 104, utilities: 105, transportation: 108, insurance: 106, overall: 122 },
+  // Nevada
+  'Las Vegas, NV':       { state: 'NV', housing: 92, healthcare: 103, groceries: 100, utilities: 88, transportation: 102, insurance: 108, overall: 97 },
+  'Reno, NV':            { state: 'NV', housing: 112, healthcare: 105, groceries: 102, utilities: 85, transportation: 104, insurance: 106, overall: 105 },
+  // Texas
+  'Austin, TX':          { state: 'TX', housing: 105, healthcare: 98, groceries: 95, utilities: 97, transportation: 100, insurance: 102, overall: 99 },
+  'Dallas, TX':          { state: 'TX', housing: 88, healthcare: 100, groceries: 96, utilities: 101, transportation: 98, insurance: 105, overall: 96 },
+  'Houston, TX':         { state: 'TX', housing: 82, healthcare: 98, groceries: 95, utilities: 99, transportation: 97, insurance: 108, overall: 93 },
+  'San Antonio, TX':     { state: 'TX', housing: 78, healthcare: 96, groceries: 93, utilities: 96, transportation: 96, insurance: 100, overall: 89 },
+  // Florida
+  'Miami, FL':           { state: 'FL', housing: 128, healthcare: 105, groceries: 105, utilities: 98, transportation: 108, insurance: 120, overall: 118 },
+  'Tampa, FL':           { state: 'FL', housing: 98, healthcare: 100, groceries: 101, utilities: 96, transportation: 102, insurance: 112, overall: 100 },
+  'Orlando, FL':         { state: 'FL', housing: 95, healthcare: 98, groceries: 100, utilities: 95, transportation: 100, insurance: 110, overall: 98 },
+  'Jacksonville, FL':    { state: 'FL', housing: 85, healthcare: 97, groceries: 98, utilities: 93, transportation: 98, insurance: 108, overall: 94 },
+  // Washington
+  'Seattle, WA':         { state: 'WA', housing: 168, healthcare: 112, groceries: 108, utilities: 95, transportation: 112, insurance: 108, overall: 138 },
+  'Tacoma, WA':          { state: 'WA', housing: 125, healthcare: 108, groceries: 105, utilities: 92, transportation: 108, insurance: 105, overall: 112 },
+  // Oregon
+  'Portland, OR':        { state: 'OR', housing: 130, healthcare: 108, groceries: 105, utilities: 88, transportation: 108, insurance: 102, overall: 115 },
+  'Bend, OR':            { state: 'OR', housing: 145, healthcare: 106, groceries: 104, utilities: 85, transportation: 106, insurance: 100, overall: 120 },
+  // Arizona
+  'Phoenix, AZ':         { state: 'AZ', housing: 92, healthcare: 100, groceries: 98, utilities: 102, transportation: 100, insurance: 102, overall: 97 },
+  'Tucson, AZ':          { state: 'AZ', housing: 78, healthcare: 98, groceries: 96, utilities: 100, transportation: 98, insurance: 100, overall: 91 },
+  'Scottsdale, AZ':      { state: 'AZ', housing: 128, healthcare: 102, groceries: 100, utilities: 103, transportation: 102, insurance: 104, overall: 112 },
+  // Other popular retirement destinations
+  'Boise, ID':           { state: 'ID', housing: 105, healthcare: 100, groceries: 98, utilities: 82, transportation: 100, insurance: 98, overall: 99 },
+  'Denver, CO':          { state: 'CO', housing: 120, healthcare: 105, groceries: 102, utilities: 90, transportation: 105, insurance: 105, overall: 110 },
+  'Asheville, NC':       { state: 'NC', housing: 105, healthcare: 98, groceries: 98, utilities: 92, transportation: 98, insurance: 96, overall: 99 },
+};
+
+// ======================================================================
 // STATE
 // ======================================================================
 let state = {
@@ -936,7 +1224,8 @@ let state = {
   stockGrants: [
     { name: 'Current RSU Grant', totalValue: 200000, vestedPct: 0, vestingYears: 3, vestOnDisability: true }
   ],
-  simulationResults: null
+  simulationResults: null,
+  relocationResults: null
 };
 
 // ======================================================================
@@ -1171,6 +1460,63 @@ function calcProp13Tax(year, purchaseYear, purchasePrice, baseRate, localOverrid
   const assessedValue = purchasePrice * Math.pow(1 + cap/100, yearsOwned);
   const taxableAssessed = Math.max(0, assessedValue - exemption);
   return taxableAssessed * (baseRate + localOverride) / 100 + melloRoos;
+}
+
+// ======================================================================
+// RELOCATION HELPERS
+// ======================================================================
+function calcStateTax(taxableIncome, stateCode, status, inflationFactor) {
+  if (!stateCode || stateCode === 'CA') return calcCATax(taxableIncome, inflationFactor);
+  const st = DESTINATION_STATES[stateCode];
+  if (!st || !st.hasIncomeTax) return 0;
+  const brackets = st.brackets;
+  if (!brackets) return 0;
+  let tax = 0, prev = 0;
+  for (const b of brackets) {
+    const adjLimit = b.limit === Infinity ? Infinity : b.limit * inflationFactor;
+    const taxable = Math.min(taxableIncome, adjLimit) - prev;
+    if (taxable > 0) tax += taxable * b.rate;
+    prev = adjLimit;
+    if (prev >= taxableIncome) break;
+  }
+  return tax;
+}
+
+function getColMultipliers(fromMetro, toMetro) {
+  const from = METRO_COL_DATA[fromMetro];
+  const to = METRO_COL_DATA[toMetro];
+  if (!from || !to) return { housing: 1, healthcare: 1, groceries: 1, utilities: 1, transportation: 1, insurance: 1, overall: 1 };
+  return {
+    housing: to.housing / from.housing,
+    healthcare: to.healthcare / from.healthcare,
+    groceries: to.groceries / from.groceries,
+    utilities: to.utilities / from.utilities,
+    transportation: to.transportation / from.transportation,
+    insurance: to.insurance / from.insurance,
+    overall: to.overall / from.overall
+  };
+}
+
+function calcHomeSaleProceeds(marketValue, costBasis, closingPct, movingCosts, filingStatus) {
+  const gain = Math.max(0, marketValue - costBasis);
+  const exclusion = HOME_SALE_EXCLUSION[filingStatus] || HOME_SALE_EXCLUSION.single;
+  const taxableGain = Math.max(0, gain - exclusion);
+  const closingCosts = marketValue * (closingPct / 100);
+  const netProceeds = marketValue - closingCosts - movingCosts;
+  return { gain, taxableGain, exclusion, closingCosts, netProceeds };
+}
+
+function calcMonthlyMortgagePayment(principal, annualRate, years) {
+  if (principal <= 0 || years <= 0) return 0;
+  const r = annualRate / 100 / 12;
+  if (r === 0) return principal / (years * 12);
+  return principal * (r * Math.pow(1 + r, years * 12)) / (Math.pow(1 + r, years * 12) - 1);
+}
+
+function getMetrosForState(stateCode) {
+  return Object.entries(METRO_COL_DATA)
+    .filter(([_, data]) => data.state === stateCode)
+    .map(([name]) => name);
 }
 
 // ======================================================================
@@ -1993,7 +2339,547 @@ function runSimulation() {
   // SCENARIO TABLE
   showScenario('median');
 
-  state.simulationResults = { medianVals, lowerVals, upperVals, p10Vals, p25Vals, p75Vals, successRate, allTerminal, ageLabels, cashflowIncome, cashflowExpenses };
+  state.simulationResults = { medianVals, lowerVals, upperVals, p10Vals, p25Vals, p75Vals, successRate, allTerminal, ageLabels, cashflowIncome, cashflowExpenses, medianTerminal };
+
+  // ====== RELOCATION SIMULATION (runs second pass if enabled) ======
+  if (document.getElementById('enableRelocation').checked) {
+    const relocMode = v('relocMode');
+    const destState = v('relocDestState');
+    const fromMetro = v('relocCurrentMetro');
+    const toMetro = v('relocDestMetro');
+    const colMults = getColMultipliers(fromMetro, toMetro);
+    const strategy = v('relocHousingStrategy');
+    const relocClosingPct = n('relocClosingPct');
+    const relocMovingCosts = n('relocMovingCosts');
+
+    // New home params (sell_buy)
+    const newHomePrice = n('relocNewPrice');
+    const newApprec = n('relocNewApprec') / 100;
+    const newPropTaxRate = n('relocNewPropTaxRate') / 100;
+    const newHOA = n('relocNewHOA') * 12;
+    const newMortgage = v('relocNewMortgage') === 'yes' && strategy === 'sell_buy';
+    const newMortPayment = newMortgage ? calcMonthlyMortgagePayment(n('relocMortAmt'), n('relocMortRate'), n('relocMortYears')) * 12 : 0;
+    const newMortYears = newMortgage ? n('relocMortYears') : 0;
+
+    // Rent params (sell_rent)
+    const rentMonthly = n('relocRentMonthly');
+    const rentInflation = n('relocRentInflation') / 100;
+
+    // Keep+rent params
+    const rentalIncome = n('relocRentalIncome');
+    const vacancyRate = n('relocVacancyRate') / 100;
+    const mgmtFee = n('relocMgmtFee') / 100;
+    const maintPct = n('relocMaintPct') / 100;
+    const keepNewRent = n('relocKeepNewRent');
+    const keepRentInfl = n('relocKeepRentInfl') / 100;
+
+    // Move ages to test
+    let moveAges;
+    if (relocMode === 'sweep') {
+      const start = n('relocSweepStart');
+      const end = n('relocSweepEnd');
+      const step = n('relocSweepStep');
+      moveAges = [];
+      for (let a = start; a <= end; a += step) moveAges.push(a);
+    } else {
+      moveAges = [n('relocMoveAge')];
+    }
+
+    const relocResults = {};
+
+    for (const moveAge of moveAges) {
+      const moveYr = moveAge - currentAge;
+      const rng2 = makeRng(seed); // Same seed as baseline for fair comparison
+      const yearlyPortfoliosR = [];
+      for (let yr = 0; yr <= totalYears; yr++) yearlyPortfoliosR.push([]);
+      const allTerminalR = [];
+      const allFailedR = [];
+
+      for (let sim = 0; sim < numSims; sim++) {
+        let trad = startTrad, b457 = start457b, dcp = startDCP, roth = startRoth, taxableAcct = startTaxable, hsaAcct = startHSA;
+        let cumulCPI = 1, cumulHealth = 1, failedYear = -1;
+        let inCrash = false, recoveryLeft = 0;
+        let moved = false;
+        let homeSaleProceeds = 0;
+
+        for (let yr = 0; yr <= totalYears; yr++) {
+          const age = currentAge + yr;
+          const totalPortfolio = trad + b457 + dcp + roth + taxableAcct + hsaAcct;
+          yearlyPortfoliosR[yr].push(totalPortfolio);
+          if (yr === totalYears) break;
+
+          // Inflation (same RNG sequence as baseline)
+          const cpiThisYear = Math.max(-0.02, gaussRandom(cpiMean, cpiStd, rng2));
+          cumulCPI *= (1 + cpiThisYear);
+          cumulHealth *= (1 + Math.max(0, gaussRandom(healthInflRate, 0.015, rng2)));
+
+          // Market return (same sequence)
+          let eqReturn;
+          if (enableCrashes && !inCrash && rng2() < crashProb) {
+            eqReturn = gaussRandom(crashMean, crashStd, rng2);
+            inCrash = true;
+            recoveryLeft = n('recoveryYears');
+          } else if (recoveryLeft > 0) {
+            eqReturn = gaussRandom(eqMean + n('recoveryBoost')/100, eqStd * 0.8, rng2);
+            recoveryLeft--;
+            if (recoveryLeft === 0) inCrash = false;
+          } else {
+            eqReturn = gaussRandom(eqMean, eqStd, rng2);
+          }
+          const bondReturn = gaussRandom(bondMean, bondStd, rng2);
+          const cashReturn = cashYield + gaussRandom(0, 0.005, rng2);
+
+          // Allocation
+          let allocEq = allocEq0, allocBd = allocBd0, allocCa = allocCa0;
+          if (useGlide && age >= retAge) {
+            const glideProgress = Math.min(1, (age - retAge) / glideYears);
+            allocEq = allocEq0 + (retEquity - allocEq0) * glideProgress;
+            allocBd = (1 - allocEq) * (allocBd0 / (allocBd0 + allocCa0 || 1));
+            allocCa = 1 - allocEq - allocBd;
+          }
+          const portfolioReturn = allocEq * eqReturn + allocBd * bondReturn + allocCa * cashReturn;
+
+          // Disability state (identical to baseline)
+          const onDisability = disabilityEnabled && age >= disabilityStartAge && age < disabilityEndAge;
+          const postDisability = disabilityEnabled && age >= disabilityEndAge;
+          const ssdiYearsOn = ssdiEnabled && onDisability ? (age - disabilityStartAge) : 0;
+          const ssdiWaitYearFraction = ssdiWaitMonths / 12;
+          const ssdiActive = ssdiEnabled && onDisability && (age - disabilityStartAge) >= ssdiWaitYearFraction;
+          const ssdiMedicareKickedIn = ssdiEnabled && ssdiMedicare && (age - disabilityStartAge) >= 2;
+
+          // INCOME (identical to baseline)
+          let earnedIncome = 0, ltdIncome = 0, stockVestIncome = 0;
+          if (onDisability) {
+            const salaryAtDisability = salary0 * Math.pow(1 + raise, disabilityStartAge - currentAge);
+            ltdIncome = salaryAtDisability * disabilityIncomePct;
+            if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+          } else if (!postDisability && age < retAge) {
+            earnedIncome += salary0 * Math.pow(1 + raise, yr);
+            if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+          } else if (postDisability && age < retAge) {
+            if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+          } else {
+            if (age < spouseRetAge) earnedIncome += spouseSalary0 * Math.pow(1 + spouseRaise, yr);
+          }
+          if (stockVestingByYear[yr]) {
+            stockVestIncome += stockVestingByYear[yr];
+            taxableAcct += stockVestIncome;
+          }
+
+          // Social Security (identical)
+          let ssIncome = 0;
+          if (ssdiActive && age < Math.ceil(ssFRA)) {
+            ssIncome += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+          } else if (ssdiEnabled && disabilityEnabled && age >= Math.ceil(ssFRA)) {
+            ssIncome += ssdiBenefitMonthly * 12 * Math.pow(1 + ssCola, age - disabilityStartAge);
+          } else if (!disabilityEnabled || !ssdiEnabled) {
+            if (age >= ssClaimAge) {
+              const ssBase = calcSSBenefit(ssFraBenefit, ssFRA, ssClaimAge) * 12;
+              ssIncome += ssBase * Math.pow(1 + ssCola, age - ssClaimAge);
+            }
+          }
+          if (age >= spouseSsClaimAge) {
+            const spBase = calcSSBenefit(spouseSsFra, ssFRA, spouseSsClaimAge) * 12;
+            ssIncome += spBase * Math.pow(1 + ssCola, age - spouseSsClaimAge);
+          }
+
+          let otherInc = 0;
+          for (const oi of state.otherIncome) {
+            if (age >= oi.startAge && age <= oi.endAge) {
+              otherInc += oi.inflationAdj ? oi.amount * cumulCPI : oi.amount;
+            }
+          }
+
+          // ===== HOME SALE EVENT =====
+          if (yr === moveYr && !moved) {
+            moved = true;
+            const homeMarketVal = homeValue0 * Math.pow(1 + homeApprec, yr);
+            const sale = calcHomeSaleProceeds(homeMarketVal, purchasePrice, relocClosingPct, relocMovingCosts, status);
+            homeSaleProceeds = sale.netProceeds;
+            // Proceeds go to taxable account (or offset new home down payment)
+            if (strategy === 'sell_buy') {
+              const downPayment = newHomePrice - (newMortgage ? n('relocMortAmt') : 0);
+              taxableAcct += Math.max(0, homeSaleProceeds - downPayment);
+            } else {
+              // sell_rent or keep_rent: all proceeds to taxable
+              if (strategy === 'sell_rent') taxableAcct += homeSaleProceeds;
+              // keep_rent: no sale, no proceeds
+            }
+          }
+
+          // EXPENSES
+          let expenses = 0;
+          // Living expenses: scale by COL after move
+          const colLiving = moved ? colMults.overall : 1;
+          expenses += monthlyBase * cumulCPI * colLiving;
+          expenses += annualBase * cumulCPI * colLiving;
+
+          for (const re of state.recurringExpenses) {
+            if (yr > 0 && yr % re.everyYears === 0) expenses += re.amount * cumulCPI * colLiving;
+          }
+          for (const ot of state.oneTimeExpenses) {
+            if (age === ot.age) expenses += ot.amount * cumulCPI;
+          }
+
+          // Healthcare (COL-adjusted after move)
+          const colHealth = moved ? colMults.healthcare : 1;
+          const effectiveMedicareAge = ssdiMedicareKickedIn ? Math.min(medicareAge, age) : medicareAge;
+          if (age < effectiveMedicareAge && !ssdiMedicareKickedIn) {
+            expenses += (healthIns + healthOOP) * cumulHealth * colHealth;
+          } else {
+            expenses += (medicareCost + healthOOP + ltcInsurance) * cumulHealth * colHealth;
+          }
+
+          // HOUSING — different logic pre/post move
+          const currentYr = 2026 + yr;
+          if (!moved) {
+            // Same as baseline
+            const propTax = calcProp13Tax(currentYr, purchaseYear, purchasePrice, prop13BaseRate, prop13LocalOverride, prop13MelloRoos, prop13Exemption, prop13Cap);
+            const homeVal = homeValue0 * Math.pow(1 + homeApprec, yr);
+            const maint = homeVal * homeMaintPct;
+            const mortgage = yr < mortgageYearsLeft ? mortgagePayment * 12 : 0;
+            expenses += propTax + maint + homeInsurance * cumulCPI + hoaFees * cumulCPI + mortgage;
+          } else {
+            const yearsAfterMove = yr - moveYr;
+            if (strategy === 'sell_buy') {
+              const newVal = newHomePrice * Math.pow(1 + newApprec, yearsAfterMove);
+              const propTax = newVal * newPropTaxRate;
+              const maint = newVal * homeMaintPct;
+              const mortgage = yearsAfterMove < newMortYears ? newMortPayment : 0;
+              expenses += propTax + maint + newHOA * cumulCPI + mortgage;
+            } else if (strategy === 'sell_rent') {
+              expenses += rentMonthly * 12 * Math.pow(1 + rentInflation, yearsAfterMove);
+            } else {
+              // keep_rent: old home as rental + new rent
+              // Old home costs still accrue (prop tax, maintenance, insurance)
+              const propTax = calcProp13Tax(currentYr, purchaseYear, purchasePrice, prop13BaseRate, prop13LocalOverride, prop13MelloRoos, prop13Exemption, prop13Cap);
+              const homeVal = homeValue0 * Math.pow(1 + homeApprec, yr);
+              const maint = homeVal * homeMaintPct;
+              const oldMort = yr < mortgageYearsLeft ? mortgagePayment * 12 : 0;
+              expenses += propTax + maint + homeInsurance * cumulCPI + oldMort;
+              // Rental income offset
+              const grossRental = rentalIncome * 12 * Math.pow(1 + cpiThisYear, yearsAfterMove);
+              const netRental = grossRental * (1 - vacancyRate) * (1 - mgmtFee - maintPct);
+              otherInc += netRental;
+              // New rental expense
+              expenses += keepNewRent * 12 * Math.pow(1 + keepRentInfl, yearsAfterMove);
+            }
+          }
+
+          // TAX — use destination state tax after move
+          const totalIncome = earnedIncome + ltdIncome + ssIncome + otherInc;
+          let netNeed = expenses - totalIncome;
+
+          // Withdrawals (same ordering)
+          let withdrawal = 0;
+          if (netNeed > 0 && totalPortfolio > 0) {
+            withdrawal = netNeed;
+            const from457 = Math.min(b457, withdrawal); b457 -= from457; withdrawal -= from457;
+            const fromDCP = Math.min(dcp, withdrawal); dcp -= fromDCP; withdrawal -= fromDCP;
+            const fromTaxable = Math.min(taxableAcct, withdrawal); taxableAcct -= fromTaxable; withdrawal -= fromTaxable;
+            const fromTrad = Math.min(trad, withdrawal); trad -= fromTrad; withdrawal -= fromTrad;
+            const fromHSA = Math.min(hsaAcct, withdrawal); hsaAcct -= fromHSA; withdrawal -= fromHSA;
+            const fromRoth = Math.min(roth, withdrawal); roth -= fromRoth; withdrawal -= fromRoth;
+          }
+
+          // Contributions (same as baseline)
+          const canContribute = age < retAge && !onDisability && !postDisability;
+          if (canContribute) {
+            const actualSalary = salary0 * Math.pow(1 + raise, yr);
+            const matchAmt = actualSalary * matchPct;
+            trad += contrib401k + matchAmt + contribIRA;
+            b457 += contrib457b;
+            dcp += contribDCP;
+            roth += contribRoth;
+            hsaAcct += contribHSA;
+            const esppShares = contribESPP / (1 - esppDiscount);
+            taxableAcct += esppShares + contribTaxable;
+          } else if (age < retAge && (onDisability || postDisability)) {
+            hsaAcct += contribHSA;
+          }
+
+          // Growth
+          trad *= (1 + portfolioReturn);
+          b457 *= (1 + portfolioReturn);
+          dcp *= (1 + portfolioReturn);
+          roth *= (1 + portfolioReturn);
+          taxableAcct *= (1 + portfolioReturn);
+          hsaAcct *= (1 + portfolioReturn);
+          trad = Math.max(0, trad); b457 = Math.max(0, b457); dcp = Math.max(0, dcp);
+          roth = Math.max(0, roth); taxableAcct = Math.max(0, taxableAcct); hsaAcct = Math.max(0, hsaAcct);
+
+          if (trad + b457 + dcp + roth + taxableAcct + hsaAcct <= 0 && failedYear === -1 && age >= retAge) {
+            failedYear = yr;
+          }
+        }
+
+        const terminalVal = trad + b457 + dcp + roth + taxableAcct + hsaAcct;
+        allTerminalR.push(terminalVal);
+        allFailedR.push(failedYear);
+      }
+
+      // Compute percentiles for this move age
+      const medianValsR = [], lowerValsR = [], upperValsR = [], p10ValsR = [];
+      for (let yr = 0; yr <= totalYears; yr++) {
+        const sorted = yearlyPortfoliosR[yr].slice().sort((a,b) => a - b);
+        const len = sorted.length;
+        medianValsR.push(sorted[Math.floor(len * 0.5)]);
+        lowerValsR.push(sorted[Math.floor(len * lowerPct)]);
+        upperValsR.push(sorted[Math.floor(len * upperPct)]);
+        p10ValsR.push(sorted[Math.floor(len * 0.1)]);
+      }
+      const successCountR = allFailedR.filter(f => f === -1).length;
+      const successRateR = (successCountR / numSims * 100).toFixed(1);
+      const sortedTerminalR = allTerminalR.slice().sort((a,b) => a - b);
+      const medianTerminalR = sortedTerminalR[Math.floor(numSims * 0.5)];
+
+      relocResults[moveAge] = { medianVals: medianValsR, lowerVals: lowerValsR, upperVals: upperValsR, p10Vals: p10ValsR, successRate: successRateR, medianTerminal: medianTerminalR, allTerminal: allTerminalR };
+    }
+
+    state.relocationResults = relocResults;
+    displayRelocationResults(state.simulationResults, relocResults, moveAges);
+  }
+}
+
+// ======================================================================
+// RELOCATION UI
+// ======================================================================
+function updateRelocationUI() {
+  const enabled = document.getElementById('enableRelocation').checked;
+  document.getElementById('relocationSettings').classList.toggle('hidden', !enabled);
+  if (enabled) {
+    populateRelocationMetros();
+    updateRelocationMetros();
+    updateRelocationHousingUI();
+    updateRelocationPreview();
+    // Show/hide sweep fields
+    const mode = v('relocMode');
+    document.getElementById('relocFixedField').classList.toggle('hidden', mode === 'sweep');
+    document.getElementById('relocSweepStartField').classList.toggle('hidden', mode !== 'sweep');
+    document.getElementById('relocSweepEndField').classList.toggle('hidden', mode !== 'sweep');
+    document.getElementById('relocSweepStepField').classList.toggle('hidden', mode !== 'sweep');
+  }
+}
+
+function populateRelocationMetros() {
+  const currentSel = document.getElementById('relocCurrentMetro');
+  if (currentSel.options.length > 0) return; // already populated
+  // Populate current metro (all metros)
+  for (const name of Object.keys(METRO_COL_DATA)) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    currentSel.appendChild(opt);
+  }
+  // Default to SF
+  currentSel.value = 'San Francisco, CA';
+}
+
+function updateRelocationMetros() {
+  const destState = v('relocDestState');
+  const destSel = document.getElementById('relocDestMetro');
+  const prevVal = destSel.value;
+  destSel.innerHTML = '';
+  const metros = getMetrosForState(destState);
+  for (const name of metros) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    destSel.appendChild(opt);
+  }
+  // Restore previous if still valid
+  if (metros.some(m => m === prevVal)) destSel.value = prevVal;
+  // Update property tax hint
+  const st = DESTINATION_STATES[destState];
+  if (st) {
+    document.getElementById('relocNewPropTaxRate').value = st.medianPropertyTaxRate;
+    document.getElementById('relocPropTaxHint').textContent = st.name + ' median: ' + st.medianPropertyTaxRate + '%';
+  }
+}
+
+function updateRelocationHousingUI() {
+  const strategy = v('relocHousingStrategy');
+  document.getElementById('relocBuySection').classList.toggle('hidden', strategy !== 'sell_buy');
+  document.getElementById('relocRentSection').classList.toggle('hidden', strategy !== 'sell_rent');
+  document.getElementById('relocKeepSection').classList.toggle('hidden', strategy !== 'keep_rent');
+  // Mortgage fields
+  const hasMortgage = v('relocNewMortgage') === 'yes' && strategy === 'sell_buy';
+  document.getElementById('relocMortAmtField').classList.toggle('hidden', !hasMortgage);
+  document.getElementById('relocMortRateField').classList.toggle('hidden', !hasMortgage);
+  document.getElementById('relocMortYearsField').classList.toggle('hidden', !hasMortgage);
+  updateRelocationPreview();
+}
+
+function updateRelocationPreview() {
+  if (!document.getElementById('enableRelocation').checked) return;
+  const fromMetro = v('relocCurrentMetro');
+  const toMetro = v('relocDestMetro');
+  const destState = v('relocDestState');
+  const strategy = v('relocHousingStrategy');
+  const mults = getColMultipliers(fromMetro, toMetro);
+  const status = v('filingStatus');
+
+  // Home sale estimate
+  const homeVal = n('homeValue');
+  const purchasePrice = n('homePurchasePrice');
+  const closingPct = n('relocClosingPct');
+  const movingCosts = n('relocMovingCosts');
+  const sale = calcHomeSaleProceeds(homeVal, purchasePrice, closingPct, movingCosts, status);
+
+  // Tax comparison at sample income
+  const sampleIncome = 150000;
+  const caTax = calcCATax(sampleIncome, 1.0);
+  const destTax = calcStateTax(sampleIncome, destState, status, 1.0);
+  const annualTaxSavings = caTax - destTax;
+
+  // Housing cost comparison
+  let currentAnnualHousing = n('mortgagePayment') * 12 + n('homeInsurance') + n('hoaFees') * 12;
+  const currentPropTax = calcProp13Tax(2026, n('homePurchaseYear'), purchasePrice, n('prop13BaseRate'), n('localOverride'), n('melloRoos'), n('homeExemption'), n('prop13Cap'));
+  currentAnnualHousing += currentPropTax;
+
+  let newAnnualHousing = 0;
+  if (strategy === 'sell_buy') {
+    const newPrice = n('relocNewPrice');
+    const propTax = newPrice * (n('relocNewPropTaxRate') / 100);
+    const hoa = n('relocNewHOA') * 12;
+    const mortgage = v('relocNewMortgage') === 'yes' ? calcMonthlyMortgagePayment(n('relocMortAmt'), n('relocMortRate'), n('relocMortYears')) * 12 : 0;
+    newAnnualHousing = propTax + hoa + mortgage;
+  } else if (strategy === 'sell_rent') {
+    newAnnualHousing = n('relocRentMonthly') * 12;
+  } else {
+    // keep_rent: new rent + old expenses minus rental income
+    const grossRent = n('relocRentalIncome');
+    const vacancy = n('relocVacancyRate') / 100;
+    const mgmt = n('relocMgmtFee') / 100;
+    const maint = n('relocMaintPct') / 100;
+    const netRental = grossRent * 12 * (1 - vacancy) * (1 - mgmt - maint);
+    newAnnualHousing = n('relocKeepNewRent') * 12 + currentPropTax + (homeVal * (n('homeMaintPct') / 100)) - netRental;
+  }
+
+  // COL comparison
+  const colEl = document.getElementById('colComparison');
+  const cats = [
+    { key: 'housing', label: 'Housing', icon: '&#127968;' },
+    { key: 'healthcare', label: 'Healthcare', icon: '&#129658;' },
+    { key: 'groceries', label: 'Groceries', icon: '&#128722;' },
+    { key: 'utilities', label: 'Utilities', icon: '&#9889;' },
+    { key: 'transportation', label: 'Transport', icon: '&#128663;' },
+    { key: 'overall', label: 'Overall', icon: '&#127919;' }
+  ];
+  colEl.innerHTML = cats.map(c => {
+    const m = mults[c.key];
+    const pct = ((m - 1) * 100);
+    const color = pct < -5 ? 'text-green' : pct > 5 ? 'text-red' : 'text-accent';
+    return `<div class="stat-card"><div class="stat-label">${c.icon} ${c.label}</div><div class="stat-value ${color}">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</div></div>`;
+  }).join('');
+
+  // Financial preview
+  const previewEl = document.getElementById('relocFinancialPreview');
+  previewEl.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Home Sale Proceeds</div><div class="stat-value">$${fmt(sale.netProceeds)}</div><div class="stat-sub">${sale.taxableGain > 0 ? '$' + fmt(sale.taxableGain) + ' taxable gain' : 'Fully excluded under IRC §121'}</div></div>
+    <div class="stat-card"><div class="stat-label">Annual State Tax Savings</div><div class="stat-value ${annualTaxSavings > 0 ? 'text-green' : 'text-red'}">${annualTaxSavings > 0 ? '+' : ''}$${fmt(annualTaxSavings)}</div><div class="stat-sub">on $${fmt(sampleIncome)} income (est.)</div></div>
+    <div class="stat-card"><div class="stat-label">Housing: Current</div><div class="stat-value">$${fmt(currentAnnualHousing)}</div><div class="stat-sub">per year</div></div>
+    <div class="stat-card"><div class="stat-label">Housing: After Move</div><div class="stat-value ${newAnnualHousing < currentAnnualHousing ? 'text-green' : 'text-orange'}">$${fmt(newAnnualHousing)}</div><div class="stat-sub">${newAnnualHousing < currentAnnualHousing ? 'Saves' : 'Costs'} $${fmt(Math.abs(currentAnnualHousing - newAnnualHousing))}/yr</div></div>
+    <div class="stat-card"><div class="stat-label">Overall COL Change</div><div class="stat-value ${mults.overall < 1 ? 'text-green' : 'text-orange'}">${((mults.overall - 1) * 100).toFixed(0)}%</div><div class="stat-sub">${fromMetro} → ${toMetro}</div></div>
+    <div class="stat-card"><div class="stat-label">Net Year-1 Benefit</div><div class="stat-value ${(annualTaxSavings + currentAnnualHousing - newAnnualHousing) > 0 ? 'text-green' : 'text-red'}">$${fmt(annualTaxSavings + currentAnnualHousing - newAnnualHousing)}</div><div class="stat-sub">tax + housing savings</div></div>
+  `;
+}
+
+let relocationChartInstance = null;
+
+function displayRelocationResults(baselineResults, relocResults, moveAges) {
+  document.getElementById('relocResultsPlaceholder').classList.add('hidden');
+  document.getElementById('relocResultsContent').classList.remove('hidden');
+
+  if (moveAges.length === 1) {
+    // Single move age: overlay chart
+    const r = relocResults[moveAges[0]];
+    const ageLabels = baselineResults.ageLabels;
+
+    if (relocationChartInstance) relocationChartInstance.destroy();
+    relocationChartInstance = new Chart(document.getElementById('relocationChart'), {
+      type: 'line',
+      data: {
+        labels: ageLabels,
+        datasets: [
+          { label: 'Stay (Median)', data: baselineResults.medianVals, borderColor: '#5b8af5', backgroundColor: 'rgba(91,138,245,0.05)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+          { label: 'Move (Median)', data: r.medianVals, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.05)', fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+          { label: 'Stay (10th)', data: baselineResults.p10Vals, borderColor: 'rgba(91,138,245,0.25)', borderDash: [5,5], fill: false, pointRadius: 0, borderWidth: 1 },
+          { label: 'Move (10th)', data: r.p10Vals, borderColor: 'rgba(74,222,128,0.25)', borderDash: [5,5], fill: false, pointRadius: 0, borderWidth: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: '#e2e4ed' } }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + fmt(ctx.parsed.y) } } },
+        scales: {
+          x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+          y: { ticks: { color: '#8b8fa3', callback: v => '$' + fmt(v) }, grid: { color: '#2e3347' } }
+        }
+      }
+    });
+  } else {
+    // Sweep: show best-result chart
+    const labels = moveAges.map(a => 'Age ' + a);
+    const successRates = moveAges.map(a => parseFloat(relocResults[a].successRate));
+    const terminalMedians = moveAges.map(a => relocResults[a].medianTerminal);
+
+    if (relocationChartInstance) relocationChartInstance.destroy();
+    relocationChartInstance = new Chart(document.getElementById('relocationChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Success Rate (%)', data: successRates, backgroundColor: 'rgba(74,222,128,0.6)', yAxisID: 'y' },
+          { label: 'Median Terminal ($)', data: terminalMedians, backgroundColor: 'rgba(91,138,245,0.6)', yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#e2e4ed' } } },
+        scales: {
+          x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2e3347' } },
+          y: { type: 'linear', position: 'left', ticks: { color: '#4ade80', callback: v => v + '%' }, grid: { color: '#2e3347' }, title: { display: true, text: 'Success Rate', color: '#4ade80' } },
+          y1: { type: 'linear', position: 'right', ticks: { color: '#5b8af5', callback: v => '$' + fmt(v) }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Terminal Wealth', color: '#5b8af5' } }
+        }
+      }
+    });
+  }
+
+  // Summary stats
+  const staySuccess = parseFloat(baselineResults.successRate);
+  const bestAge = moveAges.reduce((best, age) => parseFloat(relocResults[age].successRate) > parseFloat(relocResults[best].successRate) ? age : best, moveAges[0]);
+  const bestResult = relocResults[bestAge];
+  const moveSuccess = parseFloat(bestResult.successRate);
+  const diff = moveSuccess - staySuccess;
+
+  document.getElementById('relocSummaryStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Stay: Success Rate</div><div class="stat-value">${staySuccess}%</div></div>
+    <div class="stat-card"><div class="stat-label">Move at ${bestAge}: Success Rate</div><div class="stat-value ${moveSuccess >= staySuccess ? 'text-green' : 'text-red'}">${moveSuccess}%</div></div>
+    <div class="stat-card"><div class="stat-label">Impact</div><div class="stat-value ${diff >= 0 ? 'text-green' : 'text-red'}">${diff >= 0 ? '+' : ''}${diff.toFixed(1)}pp</div></div>
+    <div class="stat-card"><div class="stat-label">Best Move Age</div><div class="stat-value text-accent">${bestAge}</div><div class="stat-sub">${moveAges.length > 1 ? 'out of ' + moveAges.length + ' tested' : 'fixed'}</div></div>
+    <div class="stat-card"><div class="stat-label">Stay: Median Terminal</div><div class="stat-value">$${fmt(baselineResults.medianTerminal)}</div></div>
+    <div class="stat-card"><div class="stat-label">Move: Median Terminal</div><div class="stat-value ${bestResult.medianTerminal > baselineResults.medianTerminal ? 'text-green' : 'text-orange'}">$${fmt(bestResult.medianTerminal)}</div></div>
+  `;
+
+  // Comparison table
+  let html = '<table><thead><tr><th>Move Age</th><th>Success Rate</th><th>vs. Stay</th><th>Median Terminal</th><th>Wealth Impact</th></tr></thead><tbody>';
+  for (const age of moveAges) {
+    const r = relocResults[age];
+    const ms = parseFloat(r.successRate);
+    const d = ms - staySuccess;
+    const wDiff = r.medianTerminal - baselineResults.medianTerminal;
+    const isBest = age === bestAge;
+    html += `<tr${isBest ? ' style="background:rgba(74,222,128,0.08)"' : ''}>
+      <td>${age}${isBest ? ' &#11088;' : ''}</td>
+      <td>${ms.toFixed(1)}%</td>
+      <td class="${d >= 0 ? 'text-green' : 'text-red'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}pp</td>
+      <td>$${fmt(r.medianTerminal)}</td>
+      <td class="${wDiff >= 0 ? 'text-green' : 'text-red'}">${wDiff >= 0 ? '+' : ''}$${fmt(wDiff)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('relocComparisonTable').innerHTML = html;
 }
 
 function toggleCollapse(bodyId, toggle) {
@@ -2168,7 +3054,8 @@ function exportCSV() {
     'NetCashflow','PortfolioWithdrawal',
     'Bal_Traditional','Bal_457b','Bal_DCP','Bal_Roth','Bal_Taxable','Bal_HSA','Bal_Total',
     'Contrib_403b','Contrib_457b','Contrib_ESPP','Contrib_DCP','Contrib_IRA','Contrib_Roth','Contrib_HSA','Contrib_Taxable','Contrib_Total',
-    'CPI_Cumulative','HomeMarketValue','HomeAssessedValue'
+    'CPI_Cumulative','HomeMarketValue','HomeAssessedValue',
+    'Relocation_Enabled','Relocation_DestState','Relocation_Strategy','Relocation_COL_Overall'
   ];
 
   const rows = [headers.join(',')];
@@ -2302,7 +3189,11 @@ function exportCSV() {
           (contribTotal / monthDiv).toFixed(2),
           cpi.toFixed(4),
           homeVal.toFixed(2),
-          assessedVal.toFixed(2)
+          assessedVal.toFixed(2),
+          document.getElementById('enableRelocation').checked ? 'Yes' : 'No',
+          document.getElementById('enableRelocation').checked ? v('relocDestState') : '',
+          document.getElementById('enableRelocation').checked ? v('relocHousingStrategy') : '',
+          document.getElementById('enableRelocation').checked ? getColMultipliers(v('relocCurrentMetro'), v('relocDestMetro')).overall.toFixed(3) : ''
         ];
         rows.push(row.join(','));
       }
@@ -2401,6 +3292,7 @@ function _doSave() {
     data.state.oneTimeExpenses = state.oneTimeExpenses;
     data.state.otherIncome = state.otherIncome;
     data.state.stockGrants = state.stockGrants;
+    data.state.relocationResults = state.relocationResults;
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
@@ -2433,6 +3325,7 @@ function loadFromStorage() {
       if (data.state.oneTimeExpenses) state.oneTimeExpenses = data.state.oneTimeExpenses;
       if (data.state.otherIncome) state.otherIncome = data.state.otherIncome;
       if (data.state.stockGrants) state.stockGrants = data.state.stockGrants;
+      if (data.state.relocationResults) state.relocationResults = data.state.relocationResults;
     }
 
     return true;
@@ -2507,6 +3400,13 @@ function initUI() {
   updateProp13Chart();
   updateTaxChart();
 
+  // Initialize relocation metros (populate selects even when tab isn't visible)
+  populateRelocationMetros();
+  updateRelocationMetros();
+  if (document.getElementById('enableRelocation').checked) {
+    updateRelocationUI();
+  }
+
   // Attach auto-save after initial render (so initial render doesn't trigger saves)
   setTimeout(attachAutoSave, 100);
 
@@ -2540,6 +3440,7 @@ switchTab = function(tab) {
   if (tab === 'expenses') { updateExpenseSummary(); updateExpenseChart(); }
   if (tab === 'housing') updateProp13Chart();
   if (tab === 'taxes') updateTaxChart();
+  if (tab === 'relocation') { updateRelocationUI(); }
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
@@ -2555,7 +3456,7 @@ const _screenTickColor = '#8b8fa3';
 const _screenLegendColor = '#e2e4ed';
 
 function _forEachChart(fn) {
-  const ids = ['portfolioChart','successChart','terminalChart','cashflowChart','withdrawalRateChart','incomeStackChart'];
+  const ids = ['portfolioChart','successChart','terminalChart','cashflowChart','withdrawalRateChart','incomeStackChart','relocationChart'];
   for (const id of ids) {
     const el = document.getElementById(id);
     if (!el) continue;
