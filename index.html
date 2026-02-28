@@ -199,6 +199,7 @@ tr:hover td { background: var(--surface2); }
   <div class="tab" data-tab="taxes" onclick="switchTab('taxes')">Tax Strategy</div>
   <div class="tab" data-tab="simulation" onclick="switchTab('simulation')">Simulation Settings</div>
   <div class="tab" data-tab="results" onclick="switchTab('results')">Results Dashboard</div>
+  <div class="tab" data-tab="about" onclick="switchTab('about')">About</div>
 </div>
 
 <div class="content">
@@ -747,6 +748,38 @@ tr:hover td { background: var(--surface2); }
         <div class="field" style="justify-content:flex-end"><button onclick="exportCSV()">Export CSV</button></div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-about">
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128274;</span> Privacy First</div>
+    <div class="alert alert-success" style="font-size:15px;line-height:1.6;">
+      <strong>Your financial data never leaves your browser.</strong> This application runs entirely client-side &mdash; there is no server, no database, no analytics, no tracking pixels, no cookies (other than localStorage on your own machine), and no network requests beyond loading Chart.js from a CDN. Your income, assets, expenses, and simulation results are yours alone.
+    </div>
+    <p style="margin-top:12px;line-height:1.7;color:var(--text-dim);">All data you enter is stored in your browser's localStorage. It persists across page reloads but never leaves your device. If you clear your browser data or use the Reset button, it's gone &mdash; there is no backup on any server. You can verify this by opening your browser's Network tab: the only outbound request is the Chart.js library download.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128218;</span> How It Works</div>
+    <p style="line-height:1.7;margin-bottom:14px;">This retirement planner uses <strong>Monte Carlo simulation</strong> to model thousands of possible futures for your finances. Rather than assuming a single average rate of return, it samples from historical market data and adds realistic variance, including fat-tail crash events with recovery dynamics.</p>
+    <p style="line-height:1.7;margin-bottom:14px;">The simulator models each month from your current age through the end of your planned retirement horizon. At each step it computes: employment or disability income, Social Security and SSDI benefits, stock vesting, account contributions (403(b), 457(b), DCP, ESPP, IRA, Roth, HSA, taxable), investment returns per asset class, federal and California state taxes, all expense categories, and portfolio withdrawals using a dynamic guardrail strategy.</p>
+    <p style="line-height:1.7;margin-bottom:14px;">Key modeling features include:</p>
+    <ul style="line-height:1.9;margin-left:20px;color:var(--text-dim);">
+      <li><strong>Historical data</strong> &mdash; bundled VFINX returns (1976&ndash;2024), CPI-U, PCE deflator, and Bloomberg Aggregate bond returns from the St. Louis Fed (FRED)</li>
+      <li><strong>Prop 13 property tax</strong> &mdash; California's 2% annual cap on assessed value increases from your purchase year</li>
+      <li><strong>Disability scenario</strong> &mdash; LTD income, SSDI with 5-month waiting period, Medicare after 24 months, RSU vesting control</li>
+      <li><strong>Smart withdrawal ordering</strong> &mdash; 457(b) first (no early penalty), then DCP, taxable, traditional, HSA, and Roth last</li>
+      <li><strong>Tax engine</strong> &mdash; 2025 federal brackets (MFJ/Single) and California's 10-bracket system with mental health surcharge</li>
+      <li><strong>Crash modeling</strong> &mdash; configurable probability, severity, duration, and recovery dynamics with fat tails</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128187;</span> Source Code & License</div>
+    <p style="line-height:1.7;margin-bottom:14px;">This project is open source and available on GitHub:</p>
+    <p style="margin-bottom:14px;"><a href="https://github.com/phubbard/retirement-simulator" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-size:15px;">github.com/phubbard/retirement-simulator</a></p>
+    <p style="line-height:1.7;color:var(--text-dim);">&copy; 2026 Paul Hubbard. Built with care, a healthy dose of paranoia about financial data privacy, and Claude.</p>
   </div>
 </div>
 
