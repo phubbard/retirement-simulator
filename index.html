@@ -3253,8 +3253,27 @@ function importConfig(event) {
         if (config.state.otherIncome) state.otherIncome = config.state.otherIncome;
         if (config.state.stockGrants) state.stockGrants = config.state.stockGrants;
       }
-      initUI();
-      alert('Configuration loaded successfully!');
+      // Persist imported data to localStorage BEFORE initUI, so
+      // loadFromStorage() inside initUI reads the imported state
+      // instead of overwriting it with stale localStorage data.
+      _doSave();
+      // Re-render all UI from the imported state
+      renderAccounts();
+      renderExpenseList('monthlyExpenses', 'monthlyExpenseList', []);
+      renderExpenseList('annualExpenses', 'annualExpenseList', []);
+      renderExpenseList('recurringExpenses', 'recurringExpenseList', ['everyYears']);
+      renderExpenseList('oneTimeExpenses', 'oneTimeExpenseList', ['age']);
+      renderOtherIncome();
+      renderStockGrants();
+      toggleDisabilityUI();
+      updateAllocDisplay();
+      updateExpenseSummary();
+      updateProp13Chart();
+      updateTaxChart();
+      if (document.getElementById('enableRelocation').checked) {
+        updateRelocationUI();
+      }
+      alert('Configuration loaded successfully! (' + state.accounts.length + ' accounts)');
     } catch(err) { alert('Error loading config: ' + err.message); }
   };
   reader.readAsText(file);
